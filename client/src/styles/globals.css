@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@import 'tailwindcss';
+
+:root {
+  --bg-primary: #050a0e;
+  --bg-secondary: #0a1628;
+  --bg-card: #0d1f35;
+  --accent-primary: #00d4ff;
+  --accent-secondary: #7b2fff;
+  --accent-green: #00ff88;
+  --accent-red: #ff3d5a;
+  --accent-amber: #ffb800;
+  --text-primary: #e8f4f8;
+  --text-secondary: #7a9db5;
+  --border: rgba(0, 212, 255, 0.12);
+  --glow-cyan: 0 0 20px rgba(0, 212, 255, 0.3);
+  --glow-violet: 0 0 20px rgba(123, 47, 255, 0.3);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-primary) var(--bg-secondary);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--accent-primary);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #43e4ff;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'DM Sans', sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: rgba(0, 212, 255, 0.35);
+  color: var(--text-primary);
+}
+
+a {
+  color: inherit;
+}
