@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Layers3, ListFilter, MapPin, Route, X, Zap } from 'lucide-react'
+import { ListFilter, MapPin, Route, X, Zap } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useSearchParams } from 'react-router-dom'
@@ -8,7 +8,7 @@ import { Navbar, PageWrapper } from '../components/layout'
 import MapSidebar from '../components/map/MapSidebar'
 import MapView from '../components/map/MapView'
 import StationDrawer from '../components/station/StationDrawer'
-import { Button } from '../components/ui'
+import { getMockStationById } from '../data/mockStations'
 import useAuth from '../hooks/useAuth'
 import useGeolocation from '../hooks/useGeolocation'
 import useSocket from '../hooks/useSocket'
@@ -16,64 +16,13 @@ import useStations from '../hooks/useStations'
 import api from '../services/api'
 import { useMapStore } from '../store/mapStore'
 import { useStationStore } from '../store/stationStore'
-import { getMapboxToken } from '../utils/mapbox'
+import { buildOsrmRouteUrl, getMapTilerKey } from '../utils/maptiler'
+import { isMockModeEnabled, isMockStationId } from '../utils/mockMode'
 
 const INDIA_CENTER = [78.9629, 20.5937]
-
-const haversineDistanceKm = (from, to) => {
-	const fromLat = Number(from?.lat)
-	const fromLng = Number(from?.lng)
-	const toLat = Number(to?.lat)
-	const toLng = Number(to?.lng)
-
-	if ([fromLat, fromLng, toLat, toLng].some((value) => !Number.isFinite(value))) {
-		return 0
-	}
-
-	const earthRadiusKm = 6371
-	const toRadians = (value) => (value * Math.PI) / 180
-
-	const dLat = toRadians(toLat - fromLat)
-	const dLng = toRadians(toLng - fromLng)
-
-	const a =
-		Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-		Math.cos(toRadians(fromLat)) *
-			Math.cos(toRadians(toLat)) *
-			Math.sin(dLng / 2) *
-			Math.sin(dLng / 2)
-
-	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-	return earthRadiusKm * c
-}
-
-const getPointAlongLine = (coordinates, targetDistanceKm) => {
-	if (!Array.isArray(coordinates) || coordinates.length < 2 || targetDistanceKm <= 0) {
-		return null
-	}
-
-	let traveledKm = 0
-
-	for (let index = 0; index < coordinates.length - 1; index += 1) {
-		const [fromLng, fromLat] = coordinates[index]
-		const [toLng, toLat] = coordinates[index + 1]
-
-		const segmentDistance = haversineDistanceKm(
-			{ lat: fromLat, lng: fromLng },
-			{ lat: toLat, lng: toLng },
-		)
-
-		if (traveledKm + segmentDistance >= targetDistanceKm && segmentDistance > 0) {
-			const ratio = (targetDistanceKm - traveledKm) / segmentDistance
-			const lng = fromLng + (toLng - fromLng) * ratio
-			const lat = fromLat + (toLat - fromLat) * ratio
-			return [lng, lat]
-		}
-
-		traveledKm += segmentDistance
-	}
-
-	return coordinates[coordinates.length - 1] || null
+const MOCK_FALLBACK_LOCATION = {
+	lat: 16.5062,
+	lng: 80.648,
 }
 
 const getStationCoordinates = (station) => {
@@ -111,8 +60,8 @@ const getInitialViewport = (userLocation, mapCenter) => {
 	}
 
 	return {
-		lat: INDIA_CENTER[1],
-		lng: INDIA_CENTER[0],
+		lat: isMockModeEnabled() ? MOCK_FALLBACK_LOCATION.lat : INDIA_CENTER[1],
+		lng: isMockModeEnabled() ? MOCK_FALLBACK_LOCATION.lng : INDIA_CENTER[0],
 		radiusKm: 10,
 	}
 }
@@ -133,12 +82,17 @@ function MapPage() {
 	const setFilters = useMapStore((state) => state.setFilters)
 	const resetFilters = useMapStore((state) => state.resetFilters)
 	const setMapCenter = useMapStore((state) => state.setMapCenter)
+	const zoom = useMapStore((state) => state.zoom)
 	const setZoom = useMapStore((state) => state.setZoom)
 	const setVisibleStations = useMapStore((state) => state.setVisibleStations)
 	const setStations = useMapStore((state) => state.setStations)
 
 	const { socket, isConnected } = useSocket()
-	const { requestLocation, error: locationError } = useGeolocation()
+	const {
+		requestLocation,
+		error: locationError,
+		isLoading: isLocating,
+	} = useGeolocation()
 	const { user, isAuthenticated } = useAuth()
 	const savedStationsFromStore = useStationStore((state) => state.savedStations)
 	const stationIdFromQuery = searchParams.get('stationId')
@@ -146,13 +100,13 @@ function MapPage() {
 	const [viewportQuery, setViewportQuery] = useState(() =>
 		getInitialViewport(userLocation, mapCenter),
 	)
-	const [mapStyle, setMapStyle] = useState('dark')
 	const [routeGeoJSON, setRouteGeoJSON] = useState(null)
 	const [routeSummary, setRouteSummary] = useState(null)
-	const [routePlannerSummary, setRoutePlannerSummary] = useState(null)
-	const [routePlannerStops, setRoutePlannerStops] = useState([])
 	const [isRouting, setIsRouting] = useState(false)
 	const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+	const [manualLocationLabel, setManualLocationLabel] = useState(() =>
+		isMockModeEnabled() ? 'Vijayawada (Demo)' : '',
+	)
 	const [isMobile, setIsMobile] = useState(() => {
 		if (typeof window === 'undefined') {
 			return false
@@ -207,7 +161,7 @@ function MapPage() {
 		filters,
 	})
 
-	const mapboxToken = getMapboxToken()
+	const maptilerKey = getMapTilerKey()
 	const savedStationIdList = [
 		...(Array.isArray(user?.savedStations) ? user.savedStations : []).map((item) =>
 			String(item),
@@ -233,8 +187,6 @@ function MapPage() {
 	const clearRoute = useCallback(() => {
 		setRouteGeoJSON(null)
 		setRouteSummary(null)
-		setRoutePlannerSummary(null)
-		setRoutePlannerStops([])
 	}, [])
 
 	const handleNavigate = useCallback(
@@ -246,27 +198,23 @@ function MapPage() {
 				return false
 			}
 
-			if (!mapboxToken || !userLocation) {
+			if (!userLocation) {
 				return false
 			}
 
 			setIsRouting(true)
 
 			try {
-				const origin = `${userLocation.lng},${userLocation.lat}`
-				const target = `${destination[0]},${destination[1]}`
-
-				const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${origin};${target}`
-
-				const params = new URLSearchParams({
-					alternatives: 'false',
-					geometries: 'geojson',
-					overview: 'full',
-					steps: 'true',
-					access_token: mapboxToken,
+				const routeUrl = buildOsrmRouteUrl({
+					start: [userLocation.lng, userLocation.lat],
+					end: destination,
 				})
 
-				const response = await fetch(`${url}?${params.toString()}`)
+				if (!routeUrl) {
+					throw new Error('Invalid coordinates for route navigation.')
+				}
+
+				const response = await fetch(routeUrl)
 
 				if (!response.ok) {
 					throw new Error('Directions API request failed.')
@@ -286,8 +234,6 @@ function MapPage() {
 					},
 					geometry: bestRoute.geometry,
 				})
-				setRoutePlannerSummary(null)
-				setRoutePlannerStops([])
 
 				setRouteSummary({
 					stationName: station?.stationName || 'Selected station',
@@ -305,155 +251,7 @@ function MapPage() {
 				setIsRouting(false)
 			}
 		},
-		[clearRoute, mapboxToken, userLocation],
-	)
-
-	const handlePlanRoute = useCallback(
-		async ({ start, end, batteryRangeKm }) => {
-			if (!mapboxToken) {
-				throw new Error('Mapbox token is missing.')
-			}
-
-			const [startLng, startLat] = start?.coordinates || []
-			const [endLng, endLat] = end?.coordinates || []
-
-			if (
-				![startLng, startLat, endLng, endLat, batteryRangeKm].every((value) =>
-					Number.isFinite(Number(value)),
-				)
-			) {
-				throw new Error('Invalid route planner inputs.')
-			}
-
-			setIsRouting(true)
-
-			try {
-				const endpoint = `https://api.mapbox.com/directions/v5/mapbox/driving/${startLng},${startLat};${endLng},${endLat}`
-				const params = new URLSearchParams({
-					alternatives: 'false',
-					geometries: 'geojson',
-					overview: 'full',
-					steps: 'true',
-					access_token: mapboxToken,
-				})
-
-				const response = await fetch(`${endpoint}?${params.toString()}`)
-				if (!response.ok) {
-					throw new Error('Directions API request failed.')
-				}
-
-				const payload = await response.json()
-				const bestRoute = payload?.routes?.[0]
-
-				if (!bestRoute?.geometry?.coordinates?.length) {
-					throw new Error('No route available for this journey.')
-				}
-
-				const distanceKm = (Number(bestRoute.distance) || 0) / 1000
-				const durationMin = (Number(bestRoute.duration) || 0) / 60
-				const requiredStops = Math.max(
-					0,
-					Math.ceil(distanceKm / Number(batteryRangeKm)) - 1,
-				)
-
-				const checkpointTargets = []
-				for (let index = 1; index <= requiredStops; index += 1) {
-					const targetDistance = (distanceKm / (requiredStops + 1)) * index
-					const point = getPointAlongLine(bestRoute.geometry.coordinates, targetDistance)
-
-					if (point) {
-						checkpointTargets.push({
-							order: index,
-							coordinates: point,
-						})
-					}
-				}
-
-				const usedStationIds = new Set()
-				const plannedStops = []
-
-				for (const checkpoint of checkpointTargets) {
-					const [lng, lat] = checkpoint.coordinates
-
-					try {
-						const { data } = await api.get('/stations/nearby', {
-							params: {
-								lat,
-								lng,
-								radius: 5000,
-								page: 1,
-								limit: 6,
-							},
-						})
-
-						const nearby = data?.data?.stations || []
-						const nearestStation = nearby.find(
-							(item) => item?._id && !usedStationIds.has(String(item._id)),
-						)
-
-						if (nearestStation?._id) {
-							usedStationIds.add(String(nearestStation._id))
-							plannedStops.push({
-								id: `station-stop-${nearestStation._id}-${checkpoint.order}`,
-								order: checkpoint.order,
-								kind: 'station',
-								stationId: String(nearestStation._id),
-								stationName: nearestStation.stationName || `Stop ${checkpoint.order}`,
-								coordinates:
-									getStationCoordinates(nearestStation) || checkpoint.coordinates,
-								station: nearestStation,
-							})
-							continue
-						}
-					} catch {
-						// Keep fallback checkpoint marker when nearby lookup fails.
-					}
-
-					plannedStops.push({
-						id: `checkpoint-${checkpoint.order}`,
-						order: checkpoint.order,
-						kind: 'checkpoint',
-						stationName: `Charging checkpoint ${checkpoint.order}`,
-						coordinates: checkpoint.coordinates,
-					})
-				}
-
-				setRouteGeoJSON({
-					type: 'Feature',
-					properties: {
-						routeType: 'planner',
-					},
-					geometry: bestRoute.geometry,
-				})
-
-				setRoutePlannerStops(plannedStops)
-				setRoutePlannerSummary({
-					title: `${start?.placeName || 'Start'} → ${end?.placeName || 'Destination'}`,
-					distanceKm,
-					durationMin,
-					requiredStops,
-					estimatedChargingMin: requiredStops * 35,
-					foundStations: plannedStops.filter((stop) => stop.kind === 'station').length,
-				})
-				setRouteSummary({
-					stationName: `${start?.placeName || 'Start'} → ${end?.placeName || 'Destination'}`,
-					distanceKm,
-					durationMin,
-					stepsCount: bestRoute?.legs?.[0]?.steps?.length || 0,
-				})
-
-				toast.success('Route planner ready.')
-			} catch (requestError) {
-				clearRoute()
-				const message =
-					requestError?.message || 'Unable to calculate route plan.'
-				toast.error(message)
-				throw requestError
-			} finally {
-				setIsRouting(false)
-			}
-		},
-		[clearRoute, mapboxToken],
+		[clearRoute, userLocation],
 	)
 
 	const handleViewportSettled = useCallback(
@@ -462,21 +260,61 @@ function MapPage() {
 				return
 			}
 
-			setMapCenter([lng, lat])
-			setZoom(Number(zoom) || 5)
+			const currentState = useMapStore.getState()
+			const currentCenter = currentState.mapCenter || []
+			const currentZoom = Number(currentState.zoom) || 5
+			const nextZoom = Number(zoom) || 5
 
-			setViewportQuery((current) => ({
-				...current,
-				lat,
-				lng,
-				radiusKm: Number.isFinite(radiusKm) ? radiusKm : current.radiusKm,
-			}))
+			if (
+				!Number.isFinite(Number(currentCenter[0])) ||
+				!Number.isFinite(Number(currentCenter[1])) ||
+				Math.abs(Number(currentCenter[0]) - lng) > 0.00001 ||
+				Math.abs(Number(currentCenter[1]) - lat) > 0.00001
+			) {
+				setMapCenter([lng, lat])
+			}
+
+			if (Math.abs(currentZoom - nextZoom) > 0.01) {
+				setZoom(nextZoom)
+			}
+
+			setViewportQuery((current) => {
+				const nextRadius = Number.isFinite(radiusKm) ? Number(radiusKm) : current.radiusKm
+				const hasChanged =
+					Math.abs(Number(current.lat) - lat) > 0.00001 ||
+					Math.abs(Number(current.lng) - lng) > 0.00001 ||
+					Math.abs(Number(current.radiusKm) - Number(nextRadius)) > 0.00001
+
+				if (!hasChanged) {
+					return current
+				}
+
+				return {
+					...current,
+					lat,
+					lng,
+					radiusKm: nextRadius,
+				}
+			})
 		},
 		[setMapCenter, setZoom],
 	)
 
 	const handleVisibleStationsChange = useCallback(
 		(nextStations) => {
+			const currentVisibleStations = useMapStore.getState().visibleStations || []
+			const nextIds = Array.isArray(nextStations)
+				? nextStations.map((station) => String(station?._id))
+				: []
+			const currentIds = currentVisibleStations.map((station) => String(station?._id))
+
+			const sameLength = nextIds.length === currentIds.length
+			const hasDiff = !sameLength || nextIds.some((id, index) => id !== currentIds[index])
+
+			if (!hasDiff) {
+				return
+			}
+
 			setVisibleStations(nextStations)
 		},
 		[setVisibleStations],
@@ -484,9 +322,57 @@ function MapPage() {
 
 	const handleUserLocationChange = useCallback(
 		(nextLocation) => {
-			setUserLocation(nextLocation)
+			const nextLat = Number(nextLocation?.lat)
+			const nextLng = Number(nextLocation?.lng)
+
+			if (!Number.isFinite(nextLat) || !Number.isFinite(nextLng)) {
+				return
+			}
+
+			const currentLocation = useMapStore.getState().userLocation
+			const currentLat = Number(currentLocation?.lat)
+			const currentLng = Number(currentLocation?.lng)
+
+			const unchanged =
+				Number.isFinite(currentLat) &&
+				Number.isFinite(currentLng) &&
+				Math.abs(currentLat - nextLat) < 0.00001 &&
+				Math.abs(currentLng - nextLng) < 0.00001
+
+			if (unchanged) {
+				return
+			}
+
+			setUserLocation({ lat: nextLat, lng: nextLng })
 		},
 		[setUserLocation],
+	)
+
+	const handleManualLocationSelect = useCallback(
+		(selection) => {
+			const [lng, lat] = selection?.coordinates || []
+			const nextLat = Number(lat)
+			const nextLng = Number(lng)
+
+			if (!Number.isFinite(nextLat) || !Number.isFinite(nextLng)) {
+				toast.error('Selected location is invalid.')
+				return
+			}
+
+			setUserLocation({ lat: nextLat, lng: nextLng })
+			setMapCenter([nextLng, nextLat])
+			setZoom(12)
+			setViewportQuery((current) => ({
+				...current,
+				lat: nextLat,
+				lng: nextLng,
+			}))
+			setManualLocationLabel(selection?.placeName || `${nextLat.toFixed(3)}, ${nextLng.toFixed(3)}`)
+			toast.success(
+				`Showing stations near ${selection?.placeName || 'your selected location'}.`,
+			)
+		},
+		[setMapCenter, setUserLocation, setZoom],
 	)
 
 	const handleStationHover = useCallback(
@@ -521,11 +407,15 @@ function MapPage() {
 			let nextStation = station
 
 			if (!getStationCoordinates(station)) {
-				try {
-					const { data } = await api.get(`/stations/${station._id}`)
-					nextStation = data?.data?.station || station
-				} catch {
-					nextStation = station
+				if (isMockModeEnabled() || isMockStationId(station?._id)) {
+					nextStation = getMockStationById(station._id) || station
+				} else {
+					try {
+						const { data } = await api.get(`/stations/${station._id}`)
+						nextStation = data?.data?.station || station
+					} catch {
+						nextStation = getMockStationById(station._id) || station
+					}
 				}
 			}
 
@@ -559,11 +449,15 @@ function MapPage() {
 			let selected = existingStation || null
 
 			if (!selected) {
-				try {
-					const { data } = await api.get(`/stations/${stationIdFromQuery}`)
-					selected = data?.data?.station || null
-				} catch {
-					selected = null
+				if (isMockModeEnabled() || isMockStationId(stationIdFromQuery)) {
+					selected = getMockStationById(stationIdFromQuery)
+				} else {
+					try {
+						const { data } = await api.get(`/stations/${stationIdFromQuery}`)
+						selected = data?.data?.station || null
+					} catch {
+						selected = getMockStationById(stationIdFromQuery)
+					}
 				}
 			}
 
@@ -728,12 +622,12 @@ function MapPage() {
 							onSearchSelect={handleSearchSelect}
 							hasMore={hasMore}
 							onLoadMore={loadMore}
-							routePlannerSummary={routePlannerSummary}
-							hasActiveRoute={Boolean(routeGeoJSON)}
-							isRoutePlanning={isRouting}
-							mapboxToken={mapboxToken}
-							onPlanRoute={handlePlanRoute}
-							onClearRoute={clearRoute}
+							maptilerKey={maptilerKey}
+							locationError={locationError}
+							isLocating={isLocating}
+							onRequestLocation={requestLocation}
+							onManualLocationSelect={handleManualLocationSelect}
+							manualLocationLabel={manualLocationLabel}
 						/>
 					</aside>
 
@@ -743,9 +637,11 @@ function MapPage() {
 							selectedStation={selectedStation}
 							highlightedStationId={highlightedStationId}
 							userLocation={userLocation}
-							mapStyle={mapStyle}
+							mapCenter={mapCenter}
+							mapZoom={zoom}
+							mapStyle="dark"
 							routeGeoJSON={routeGeoJSON}
-							routePlannerStops={routePlannerStops}
+							routePlannerStops={[]}
 							onStationSelect={handleStationSelect}
 							onStationHover={handleStationHover}
 							onViewportSettled={handleViewportSettled}
@@ -753,29 +649,13 @@ function MapPage() {
 							onUserLocationChange={handleUserLocationChange}
 						/>
 
-						<div className="map-hud-top-right">
-							<Button
-								variant="secondary"
-								size="sm"
-								leftIcon={<Layers3 size={15} />}
-								onClick={() =>
-									setMapStyle((current) =>
-										current === 'dark' ? 'satellite' : 'dark',
-									)
-								}
-								aria-label="Toggle map style"
-							>
-								{mapStyle === 'dark' ? 'Satellite' : 'Dark'}
-							</Button>
-						</div>
-
 						<div className="map-hud-bottom-left">
 							<div className="glass-card map-stats-bar">
 								<span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
 									<MapPin size={14} />
 									{visibleMetrics.stationCount} stations in view
 								</span>
-								<span style={{ color: 'rgba(122, 157, 181, 0.52)' }}>|</span>
+								<span style={{ color: 'rgba(138, 138, 138, 0.72)' }}>|</span>
 								<span className="status-available" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
 									<Zap size={14} />
 									{visibleMetrics.availableChargers} chargers available
@@ -789,7 +669,7 @@ function MapPage() {
 									className="glass-card"
 									style={{
 										marginTop: '0.65rem',
-										borderRadius: '12px',
+										borderRadius: '2px',
 										padding: '0.7rem',
 										width: 'min(320px, 92vw)',
 										display: 'grid',
@@ -809,9 +689,9 @@ function MapPage() {
 											style={{
 												width: 26,
 												height: 26,
-												borderRadius: '8px',
+												borderRadius: '2px',
 												border: '1px solid var(--border)',
-												background: 'rgba(10, 22, 40, 0.75)',
+												background: 'rgba(22, 22, 22, 0.95)',
 												color: 'var(--text-secondary)',
 											}}
 										>
@@ -840,7 +720,7 @@ function MapPage() {
 									aria-label="Open station list and filters"
 								>
 									<ListFilter size={16} />
-									Stations & Filters
+									Stations
 								</motion.button>
 							) : null}
 						</AnimatePresence>
@@ -859,7 +739,7 @@ function MapPage() {
 									position: 'fixed',
 									inset: 0,
 									zIndex: 46,
-									background: 'rgba(5, 10, 14, 0.48)',
+									background: 'rgba(5, 5, 5, 0.62)',
 								}}
 								aria-hidden="true"
 							/>
@@ -881,7 +761,7 @@ function MapPage() {
 										borderBottom: '1px solid var(--border)',
 									}}
 								>
-									<strong>Stations and Filters</strong>
+									<strong>Stations</strong>
 									<button
 										type="button"
 										className="focus-ring"
@@ -890,9 +770,9 @@ function MapPage() {
 										style={{
 											width: 34,
 											height: 34,
-											borderRadius: '10px',
+											borderRadius: '2px',
 											border: '1px solid var(--border)',
-											background: 'rgba(10, 22, 40, 0.72)',
+											background: 'rgba(22, 22, 22, 0.95)',
 											color: 'var(--text-secondary)',
 										}}
 									>
@@ -914,12 +794,12 @@ function MapPage() {
 										onSearchSelect={handleSearchSelect}
 										hasMore={hasMore}
 										onLoadMore={loadMore}
-										routePlannerSummary={routePlannerSummary}
-										hasActiveRoute={Boolean(routeGeoJSON)}
-										isRoutePlanning={isRouting}
-										mapboxToken={mapboxToken}
-										onPlanRoute={handlePlanRoute}
-										onClearRoute={clearRoute}
+										maptilerKey={maptilerKey}
+										locationError={locationError}
+										isLocating={isLocating}
+										onRequestLocation={requestLocation}
+										onManualLocationSelect={handleManualLocationSelect}
+										manualLocationLabel={manualLocationLabel}
 									/>
 								</div>
 							</motion.aside>
@@ -946,36 +826,17 @@ function MapPage() {
 						right: '1rem',
 						bottom: '1rem',
 						zIndex: 35,
-						borderRadius: '10px',
+						borderRadius: '2px',
 						padding: '0.48rem 0.62rem',
 						display: 'inline-flex',
 						gap: '0.45rem',
 						alignItems: 'center',
-						color: isConnected ? 'var(--accent-green)' : 'var(--text-secondary)',
+						color: isConnected ? 'var(--text-primary)' : 'var(--text-secondary)',
 					}}
 				>
 					<span className="pulse-dot" style={{ width: 8, height: 8 }} />
 					<small>{isConnected ? 'Live updates connected' : 'Reconnecting live updates...'}</small>
 				</div>
-
-				{locationError ? (
-					<div
-						className="glass-card"
-						style={{
-							position: 'fixed',
-							left: '1rem',
-							top: '5.4rem',
-							zIndex: 38,
-							borderRadius: '10px',
-							padding: '0.5rem 0.65rem',
-							color: 'var(--accent-amber)',
-							maxWidth: 320,
-							fontSize: '0.82rem',
-						}}
-					>
-						{locationError}
-					</div>
-				) : null}
 
 				{isRouting ? (
 					<div
@@ -985,7 +846,7 @@ function MapPage() {
 							top: '5.4rem',
 							right: '1rem',
 							zIndex: 38,
-							borderRadius: '10px',
+							borderRadius: '2px',
 							padding: '0.5rem 0.7rem',
 							color: 'var(--text-secondary)',
 							fontSize: '0.82rem',
@@ -1000,46 +861,40 @@ function MapPage() {
 						.map-layout-shell {
 							height: calc(100vh - 4.75rem);
 							display: grid;
-							grid-template-columns: 380px minmax(0, 1fr);
-							gap: 0.8rem;
-							padding-inline: 0.8rem;
+							grid-template-columns: 320px minmax(0, 1fr);
+							gap: 0.55rem;
+							padding-inline: 0.55rem;
 						}
 
 						.map-sidebar-desktop {
 							min-width: 0;
 							overflow: hidden;
-							padding: 0.8rem;
+							padding: 0.55rem;
 						}
 
 						.map-canvas-shell {
 							position: relative;
 							border: 1px solid var(--border);
-							border-radius: 16px;
+							border-radius: 2px;
 							overflow: hidden;
-						}
-
-						.map-hud-top-right {
-							position: absolute;
-							top: 0.8rem;
-							right: 3.2rem;
-							z-index: 4;
 						}
 
 						.map-hud-bottom-left {
 							position: absolute;
-							left: 0.8rem;
-							bottom: 0.8rem;
+							left: 0.6rem;
+							bottom: 0.6rem;
 							z-index: 4;
 						}
 
 						.map-stats-bar {
-							border-radius: 999px;
+							border-radius: 2px;
 							padding: 0.45rem 0.78rem;
-							font-size: 0.83rem;
+							font-size: 0.75rem;
 							display: inline-flex;
 							align-items: center;
 							gap: 0.6rem;
 							flex-wrap: wrap;
+							background: rgba(18, 18, 18, 0.95);
 						}
 
 						.map-mobile-toggle {
@@ -1047,9 +902,9 @@ function MapPage() {
 							z-index: 5;
 							left: 0.75rem;
 							bottom: 0.85rem;
-							border: 1px solid rgba(0, 212, 255, 0.3);
-							border-radius: 999px;
-							background: rgba(7, 14, 24, 0.9);
+							border: 1px solid var(--border);
+							border-radius: 2px;
+							background: rgba(18, 18, 18, 0.94);
 							color: var(--text-primary);
 							min-height: 40px;
 							padding: 0.4rem 0.72rem;
@@ -1064,7 +919,7 @@ function MapPage() {
 							right: 0;
 							bottom: 0;
 							z-index: 47;
-							border-radius: 16px 16px 0 0;
+							border-radius: 2px 2px 0 0;
 							border-top: 1px solid var(--border);
 							border-left: none;
 							border-right: none;
@@ -1091,10 +946,6 @@ function MapPage() {
 								border-radius: 0;
 								border-left: none;
 								border-right: none;
-							}
-
-							.map-hud-top-right {
-								right: 0.7rem;
 							}
 
 							.map-hud-bottom-left {

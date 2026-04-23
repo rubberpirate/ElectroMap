@@ -5,8 +5,8 @@ function Footer() {
   return (
     <footer
       style={{
-        borderTop: '1px solid rgba(0, 212, 255, 0.26)',
-        boxShadow: '0 -8px 30px rgba(0, 212, 255, 0.08)',
+        borderTop: '1px solid rgba(255, 255, 255, 0.26)',
+        boxShadow: '0 -8px 30px rgba(255, 255, 255, 0.08)',
         background: 'linear-gradient(180deg, rgba(10, 22, 40, 0.5), rgba(5, 10, 14, 0.9))',
       }}
     >

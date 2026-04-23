@@ -16,21 +16,21 @@ createRoot(document.getElementById('root')).render(
           position="top-right"
           toastOptions={{
             style: {
-              background: 'rgba(6, 16, 28, 0.94)',
+              background: 'rgba(18, 18, 18, 0.95)',
               color: 'var(--text-primary)',
-              border: '1px solid rgba(0, 212, 255, 0.36)',
-              boxShadow: '0 12px 28px rgba(0, 212, 255, 0.2)',
+              border: '1px solid var(--border)',
+              boxShadow: '0 12px 24px rgba(0, 0, 0, 0.4)',
             },
             success: {
               style: {
-                border: '1px solid rgba(0, 255, 136, 0.45)',
-                boxShadow: '0 12px 28px rgba(0, 255, 136, 0.24)',
+                border: '1px solid rgba(141, 211, 158, 0.55)',
+                boxShadow: '0 12px 24px rgba(141, 211, 158, 0.2)',
               },
             },
             error: {
               style: {
-                border: '1px solid rgba(255, 61, 90, 0.45)',
-                boxShadow: '0 12px 28px rgba(255, 61, 90, 0.22)',
+                border: '1px solid rgba(255, 51, 51, 0.6)',
+                boxShadow: '0 12px 24px rgba(255, 51, 51, 0.2)',
               },
             },
           }}

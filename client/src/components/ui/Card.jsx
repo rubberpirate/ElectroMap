@@ -23,8 +23,8 @@ function Card({
           ? {
               y: -4,
               boxShadow: neon
-                ? '0 22px 42px rgba(0, 212, 255, 0.14), 0 0 28px rgba(123, 47, 255, 0.2)'
-                : '0 18px 36px rgba(0, 0, 0, 0.25)',
+                ? '0 0 0 1px rgba(255, 51, 51, 0.35), 0 12px 28px rgba(0, 0, 0, 0.38)'
+                : '0 12px 26px rgba(0, 0, 0, 0.34)',
             }
           : undefined
       }

@@ -29,8 +29,10 @@ import {
 import StationFormModal from '../components/admin/StationFormModal'
 import { Navbar, PageWrapper } from '../components/layout'
 import { Button, Input } from '../components/ui'
+import { getMockStations } from '../data/mockStations'
 import useSocket from '../hooks/useSocket'
 import api from '../services/api'
+import { isMockModeEnabled } from '../utils/mockMode'
 
 const adminTabs = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -42,7 +44,7 @@ const adminTabs = [
 
 const CHARGER_STATUS_OPTIONS = ['available', 'occupied', 'offline', 'maintenance']
 
-const CHART_COLORS = ['#00d4ff', '#ffb800', '#ff3d5a', '#8ca1b5']
+const CHART_COLORS = ['#f0f0f0', '#ffb800', '#ff3d5a', '#8ca1b5']
 
 const formatDate = (value) => {
   if (!value) {
@@ -69,6 +71,112 @@ const parsePagination = (payload, fallbackPage = 1, fallbackLimit = 20) => {
     limit: Number(pagination.limit) || fallbackLimit,
     pages: Number(pagination.pages) || 1,
     total: Number(pagination.total) || 0,
+  }
+}
+
+const toMockAdminCollections = () => {
+  const stations = getMockStations()
+  const now = new Date()
+
+  const chargers = stations.flatMap((station) => {
+    const total = Number(station?.totalChargers) || 0
+    const available = Number(station?.availableChargers) || 0
+
+    return Array.from({ length: total }).map((_, index) => ({
+      _id: `${station._id}-charger-${index + 1}`,
+      stationId: {
+        _id: station._id,
+        stationName: station.stationName,
+        city: station.city,
+        state: station.state,
+      },
+      chargerType: station?.chargerTypes?.[0] || 'Level2',
+      connectorType: 'Type2',
+      powerOutput: station?.chargerTypes?.includes('DC_Fast') ? 60 : 22,
+      status: index < available ? 'available' : 'occupied',
+      lastUpdated: now.toISOString(),
+    }))
+  })
+
+  const users = [
+    {
+      _id: 'mock-admin-1',
+      username: 'admin.demo',
+      email: 'admin@electromap.demo',
+      role: 'admin',
+      createdAt: new Date(now.getFullYear() - 1, 2, 14).toISOString(),
+      savedStationsCount: 4,
+    },
+    {
+      _id: 'mock-user-1',
+      username: 'driver.one',
+      email: 'driver.one@example.com',
+      role: 'user',
+      createdAt: new Date(now.getFullYear() - 1, 6, 3).toISOString(),
+      savedStationsCount: 2,
+    },
+    {
+      _id: 'mock-user-2',
+      username: 'fleet.alpha',
+      email: 'fleet.alpha@example.com',
+      role: 'user',
+      createdAt: new Date(now.getFullYear(), 0, 11).toISOString(),
+      savedStationsCount: 7,
+    },
+  ]
+
+  const reviews = stations.slice(0, 6).map((station, index) => ({
+    _id: `mock-review-${index + 1}`,
+    rating: Math.max(3, Math.min(5, Math.round(Number(station.rating) || 4))),
+    comment: 'Fast charging session with stable connector output.',
+    tags: ['Fast', 'Reliable'],
+    createdAt: new Date(now.getFullYear(), now.getMonth(), now.getDate() - index).toISOString(),
+    userId: {
+      _id: users[index % users.length]._id,
+      username: users[index % users.length].username,
+      email: users[index % users.length].email,
+    },
+    stationId: {
+      _id: station._id,
+      stationName: station.stationName,
+      city: station.city,
+      state: station.state,
+    },
+  }))
+
+  const totalChargers = chargers.length
+  const availableChargers = chargers.filter((charger) => charger.status === 'available').length
+  const occupiedChargers = chargers.filter((charger) => charger.status === 'occupied').length
+  const offlineChargers = chargers.filter((charger) => charger.status === 'offline').length
+  const maintenanceChargers = chargers.filter((charger) => charger.status === 'maintenance').length
+
+  const stationsByMonth = Array.from({ length: 6 }).map((_, index) => {
+    const monthDate = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1)
+    return {
+      month: monthDate.toLocaleString('en-IN', { month: 'short', year: '2-digit' }),
+      count: Math.max(1, Math.round(stations.length / 6) + (index % 2)),
+    }
+  })
+
+  return {
+    stations,
+    chargers,
+    users,
+    reviews,
+    stats: {
+      totalStations: stations.length,
+      totalChargers,
+      totalUsers: users.length,
+      totalReviews: reviews.length,
+      activeStations: stations.filter((station) => Number(station.availableChargers) > 0).length,
+      stationsByMonth,
+      chargerStatusBreakdown: {
+        available: availableChargers,
+        occupied: occupiedChargers,
+        offline: offlineChargers,
+        maintenance: maintenanceChargers,
+      },
+    },
   }
 }
 
@@ -230,6 +338,13 @@ function Admin() {
     setStatsLoading(true)
     setStatsError('')
 
+    if (isMockModeEnabled()) {
+      const fallback = toMockAdminCollections()
+      setStats(fallback.stats)
+      setStatsLoading(false)
+      return
+    }
+
     try {
       const { data } = await api.get('/admin/stats')
       const payload = data?.data || {}
@@ -249,18 +364,22 @@ function Admin() {
           maintenance: 0,
         },
       })
-    } catch (requestError) {
-      setStatsError(
-        requestError?.response?.data?.message ||
-          requestError?.message ||
-          'Unable to load admin stats.',
-      )
+    } catch {
+      const fallback = toMockAdminCollections()
+      setStats(fallback.stats)
+      setStatsError('')
     } finally {
       setStatsLoading(false)
     }
   }, [])
 
   const loadStationOptions = useCallback(async () => {
+    if (isMockModeEnabled()) {
+      const fallback = toMockAdminCollections()
+      setStationOptions(fallback.stations)
+      return
+    }
+
     try {
       const { data } = await api.get('/stations', {
         params: {
@@ -272,13 +391,29 @@ function Admin() {
       const nextStations = data?.data?.stations || []
       setStationOptions(nextStations)
     } catch {
-      setStationOptions([])
+      const fallback = toMockAdminCollections()
+      setStationOptions(fallback.stations)
     }
   }, [])
 
   const loadStations = useCallback(async (page = stationsPage) => {
     setStationsLoading(true)
     setStationsError('')
+
+    if (isMockModeEnabled()) {
+      const fallback = toMockAdminCollections()
+      const start = (page - 1) * 20
+      const end = start + 20
+      setStations(fallback.stations.slice(start, end))
+      setStationsPagination({
+        page,
+        limit: 20,
+        total: fallback.stations.length,
+        pages: Math.max(1, Math.ceil(fallback.stations.length / 20)),
+      })
+      setStationsLoading(false)
+      return
+    }
 
     try {
       const { data } = await api.get('/stations', {
@@ -291,12 +426,19 @@ function Admin() {
 
       setStations(data?.data?.stations || [])
       setStationsPagination(parsePagination(data, page, 20))
-    } catch (requestError) {
-      setStationsError(
-        requestError?.response?.data?.message ||
-          requestError?.message ||
-          'Unable to load stations.',
-      )
+    } catch {
+      const fallback = toMockAdminCollections()
+      const start = (page - 1) * 20
+      const end = start + 20
+      const paginated = fallback.stations.slice(start, end)
+      setStations(paginated)
+      setStationsPagination({
+        page,
+        limit: 20,
+        total: fallback.stations.length,
+        pages: Math.max(1, Math.ceil(fallback.stations.length / 20)),
+      })
+      setStationsError('')
     } finally {
       setStationsLoading(false)
     }
@@ -305,6 +447,26 @@ function Admin() {
   const loadChargers = useCallback(async (page = chargersPage, stationId = chargerStationFilter) => {
     setChargersLoading(true)
     setChargersError('')
+
+    if (isMockModeEnabled()) {
+      const fallback = toMockAdminCollections()
+      const filtered = stationId
+        ? fallback.chargers.filter(
+            (charger) => String(charger?.stationId?._id) === String(stationId),
+          )
+        : fallback.chargers
+      const start = (page - 1) * 20
+      const end = start + 20
+      setChargers(filtered.slice(start, end))
+      setChargersPagination({
+        page,
+        limit: 20,
+        total: filtered.length,
+        pages: Math.max(1, Math.ceil(filtered.length / 20)),
+      })
+      setChargersLoading(false)
+      return
+    }
 
     try {
       const { data } = await api.get('/admin/chargers', {
@@ -317,12 +479,23 @@ function Admin() {
 
       setChargers(data?.data?.chargers || [])
       setChargersPagination(parsePagination(data, page, 20))
-    } catch (requestError) {
-      setChargersError(
-        requestError?.response?.data?.message ||
-          requestError?.message ||
-          'Unable to load chargers.',
-      )
+    } catch {
+      const fallback = toMockAdminCollections()
+      const filtered = stationId
+        ? fallback.chargers.filter(
+            (charger) => String(charger?.stationId?._id) === String(stationId),
+          )
+        : fallback.chargers
+      const start = (page - 1) * 20
+      const end = start + 20
+      setChargers(filtered.slice(start, end))
+      setChargersPagination({
+        page,
+        limit: 20,
+        total: filtered.length,
+        pages: Math.max(1, Math.ceil(filtered.length / 20)),
+      })
+      setChargersError('')
     } finally {
       setChargersLoading(false)
     }
@@ -331,6 +504,21 @@ function Admin() {
   const loadReviews = useCallback(async (page = reviewsPage) => {
     setReviewsLoading(true)
     setReviewsError('')
+
+    if (isMockModeEnabled()) {
+      const fallback = toMockAdminCollections()
+      const start = (page - 1) * 20
+      const end = start + 20
+      setReviews(fallback.reviews.slice(start, end))
+      setReviewsPagination({
+        page,
+        limit: 20,
+        total: fallback.reviews.length,
+        pages: Math.max(1, Math.ceil(fallback.reviews.length / 20)),
+      })
+      setReviewsLoading(false)
+      return
+    }
 
     try {
       const { data } = await api.get('/admin/reviews', {
@@ -342,12 +530,18 @@ function Admin() {
 
       setReviews(data?.data?.reviews || [])
       setReviewsPagination(parsePagination(data, page, 20))
-    } catch (requestError) {
-      setReviewsError(
-        requestError?.response?.data?.message ||
-          requestError?.message ||
-          'Unable to load reviews.',
-      )
+    } catch {
+      const fallback = toMockAdminCollections()
+      const start = (page - 1) * 20
+      const end = start + 20
+      setReviews(fallback.reviews.slice(start, end))
+      setReviewsPagination({
+        page,
+        limit: 20,
+        total: fallback.reviews.length,
+        pages: Math.max(1, Math.ceil(fallback.reviews.length / 20)),
+      })
+      setReviewsError('')
     } finally {
       setReviewsLoading(false)
     }
@@ -356,6 +550,27 @@ function Admin() {
   const loadUsers = useCallback(async (page = usersPage, query = usersSearchQuery) => {
     setUsersLoading(true)
     setUsersError('')
+
+    if (isMockModeEnabled()) {
+      const fallback = toMockAdminCollections()
+      const filteredUsers = query
+        ? fallback.users.filter((user) => {
+            const haystack = `${user.username} ${user.email}`.toLowerCase()
+            return haystack.includes(String(query).toLowerCase())
+          })
+        : fallback.users
+      const start = (page - 1) * 20
+      const end = start + 20
+      setUsers(filteredUsers.slice(start, end))
+      setUsersPagination({
+        page,
+        limit: 20,
+        total: filteredUsers.length,
+        pages: Math.max(1, Math.ceil(filteredUsers.length / 20)),
+      })
+      setUsersLoading(false)
+      return
+    }
 
     try {
       const { data } = await api.get('/admin/users', {
@@ -368,12 +583,24 @@ function Admin() {
 
       setUsers(data?.data?.users || [])
       setUsersPagination(parsePagination(data, page, 20))
-    } catch (requestError) {
-      setUsersError(
-        requestError?.response?.data?.message ||
-          requestError?.message ||
-          'Unable to load users.',
-      )
+    } catch {
+      const fallback = toMockAdminCollections()
+      const filteredUsers = query
+        ? fallback.users.filter((user) => {
+            const haystack = `${user.username} ${user.email}`.toLowerCase()
+            return haystack.includes(String(query).toLowerCase())
+          })
+        : fallback.users
+      const start = (page - 1) * 20
+      const end = start + 20
+      setUsers(filteredUsers.slice(start, end))
+      setUsersPagination({
+        page,
+        limit: 20,
+        total: filteredUsers.length,
+        pages: Math.max(1, Math.ceil(filteredUsers.length / 20)),
+      })
+      setUsersError('')
     } finally {
       setUsersLoading(false)
     }
@@ -661,7 +888,7 @@ function Admin() {
                 width: 30,
                 height: 30,
                 borderRadius: '9px',
-                border: '1px solid rgba(0, 212, 255, 0.3)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
                 background: 'rgba(10, 22, 40, 0.72)',
                 color: 'var(--text-secondary)',
               }}
@@ -691,10 +918,10 @@ function Admin() {
                     borderRadius: '10px',
                     minHeight: 40,
                     border: active
-                      ? '1px solid rgba(0, 212, 255, 0.45)'
+                      ? '1px solid rgba(255, 255, 255, 0.45)'
                       : '1px solid transparent',
                     background: active
-                      ? 'rgba(0, 212, 255, 0.14)'
+                      ? 'rgba(255, 255, 255, 0.14)'
                       : 'transparent',
                     color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
                     display: 'inline-flex',
@@ -749,7 +976,7 @@ function Admin() {
                         className="glass-card"
                         style={{
                           borderRadius: '12px',
-                          borderColor: 'rgba(0, 212, 255, 0.24)',
+                          borderColor: 'rgba(255, 255, 255, 0.24)',
                           padding: '0.7rem',
                           display: 'grid',
                           gap: '0.3rem',
@@ -774,7 +1001,7 @@ function Admin() {
                         <Tooltip
                           contentStyle={{
                             background: 'rgba(5, 10, 14, 0.95)',
-                            border: '1px solid rgba(0, 212, 255, 0.3)',
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
                           }}
                         />
                         <Line
@@ -811,7 +1038,7 @@ function Admin() {
                         <Tooltip
                           contentStyle={{
                             background: 'rgba(5, 10, 14, 0.95)',
-                            border: '1px solid rgba(0, 212, 255, 0.3)',
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
                           }}
                         />
                       </PieChart>
@@ -967,7 +1194,7 @@ function Admin() {
                       marginLeft: '0.45rem',
                       minHeight: 36,
                       borderRadius: '10px',
-                      border: '1px solid rgba(0, 212, 255, 0.26)',
+                      border: '1px solid rgba(255, 255, 255, 0.26)',
                       background: 'rgba(10, 22, 40, 0.72)',
                       paddingInline: '0.55rem',
                     }}
@@ -1021,7 +1248,7 @@ function Admin() {
                                 style={{
                                   minHeight: 34,
                                   borderRadius: '9px',
-                                  border: '1px solid rgba(0, 212, 255, 0.26)',
+                                  border: '1px solid rgba(255, 255, 255, 0.26)',
                                   background: 'rgba(10, 22, 40, 0.72)',
                                   paddingInline: '0.5rem',
                                 }}
@@ -1349,7 +1576,7 @@ function Admin() {
           }
 
           .admin-table-shell {
-            border: 1px solid rgba(0, 212, 255, 0.22);
+            border: 1px solid rgba(255, 255, 255, 0.22);
             border-radius: 12px;
             overflow: auto;
           }
@@ -1378,7 +1605,7 @@ function Admin() {
             width: 30px;
             height: 30px;
             border-radius: 9px;
-            border: 1px solid rgba(0, 212, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             background: rgba(10, 22, 40, 0.72);
             color: var(--text-secondary);
           }

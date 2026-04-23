@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { getMockNearbyStations } from '../data/mockStations'
 import api from '../services/api'
 import { useMapStore } from '../store/mapStore'
+import { isMockModeEnabled } from '../utils/mockMode'
 
 const PAGE_SIZE = 20
 const EMPTY_ARRAY = []
@@ -85,6 +87,33 @@ function useStations({ lat, lng, radius, filters }) {
         return
       }
 
+      if (isMockModeEnabled()) {
+        const fallback = getMockNearbyStations({
+          lat,
+          lng,
+          radiusKm:
+            Number(radius) > 100
+              ? Number(radius) / 1000
+              : Number(radius) || 12,
+          page: targetPage,
+          limit: PAGE_SIZE,
+        })
+
+        const incomingStations = fallback?.stations || []
+        const pagination = fallback?.pagination || {}
+        const totalPages = Number(pagination.pages) || 1
+        const currentPage = Number(pagination.page) || targetPage
+
+        setRawStations((previous) =>
+          append ? dedupeById([...previous, ...incomingStations]) : incomingStations,
+        )
+        setPage(currentPage)
+        setHasMore(currentPage < totalPages)
+        setError('')
+        mapStoreSetIsLoading(false)
+        return
+      }
+
       setIsLoading(true)
       mapStoreSetIsLoading(true)
       setError('')
@@ -118,16 +147,33 @@ function useStations({ lat, lng, radius, filters }) {
 
         setPage(currentPage)
         setHasMore(currentPage < totalPages)
-      } catch (requestError) {
+      } catch {
         if (requestIdRef.current !== requestId) {
           return
         }
 
-        setError(
-          requestError?.response?.data?.message ||
-            requestError?.message ||
-            'Unable to load nearby stations.',
+        const fallback = getMockNearbyStations({
+          lat,
+          lng,
+          radiusKm:
+            Number(radius) > 100
+              ? Number(radius) / 1000
+              : Number(radius) || 12,
+          page: targetPage,
+          limit: PAGE_SIZE,
+        })
+
+        const incomingStations = fallback?.stations || []
+        const pagination = fallback?.pagination || {}
+        const totalPages = Number(pagination.pages) || 1
+        const currentPage = Number(pagination.page) || targetPage
+
+        setRawStations((previous) =>
+          append ? dedupeById([...previous, ...incomingStations]) : incomingStations,
         )
+        setPage(currentPage)
+        setHasMore(currentPage < totalPages)
+        setError('')
       } finally {
         if (requestIdRef.current === requestId) {
           setIsLoading(false)

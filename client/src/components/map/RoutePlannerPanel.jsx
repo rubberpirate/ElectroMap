@@ -1,6 +1,7 @@
 import { Navigation, Route, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { fetchMapTilerGeocodeSuggestions } from '../../utils/maptiler'
 import { Button, Input } from '../ui'
 
 const toSuggestion = (feature) => {
@@ -16,33 +17,17 @@ const toSuggestion = (feature) => {
   }
 }
 
-const fetchGeocodeSuggestions = async (token, query) => {
-  if (!token || !query) {
+const fetchGeocodeSuggestions = async (apiKey, query) => {
+  if (!apiKey || !query) {
     return []
   }
 
-  const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-    query,
-  )}.json`
-  const params = new URLSearchParams({
-    autocomplete: 'true',
-    limit: '5',
-    access_token: token,
-  })
-
-  const response = await fetch(`${endpoint}?${params.toString()}`)
-  if (!response.ok) {
-    throw new Error('Unable to fetch location suggestions.')
-  }
-
-  const payload = await response.json()
-  return Array.isArray(payload?.features)
-    ? payload.features.map(toSuggestion).filter((item) => Array.isArray(item.coordinates))
-    : []
+  const features = await fetchMapTilerGeocodeSuggestions(apiKey, query, 5)
+  return features.map(toSuggestion).filter((item) => Array.isArray(item.coordinates))
 }
 
 function RoutePlannerPanel({
-  mapboxToken,
+  maptilerKey,
   isPlanning,
   summary,
   hasActiveRoute,
@@ -71,7 +56,7 @@ function RoutePlannerPanel({
     const timer = window.setTimeout(async () => {
       setIsSearchingStart(true)
       try {
-        const suggestions = await fetchGeocodeSuggestions(mapboxToken, query)
+        const suggestions = await fetchGeocodeSuggestions(maptilerKey, query)
         if (active) {
           setStartSuggestions(suggestions)
         }
@@ -90,7 +75,7 @@ function RoutePlannerPanel({
       active = false
       window.clearTimeout(timer)
     }
-  }, [mapboxToken, startInput])
+  }, [maptilerKey, startInput])
 
   useEffect(() => {
     const query = endInput.trim()
@@ -102,7 +87,7 @@ function RoutePlannerPanel({
     const timer = window.setTimeout(async () => {
       setIsSearchingEnd(true)
       try {
-        const suggestions = await fetchGeocodeSuggestions(mapboxToken, query)
+        const suggestions = await fetchGeocodeSuggestions(maptilerKey, query)
         if (active) {
           setEndSuggestions(suggestions)
         }
@@ -121,7 +106,7 @@ function RoutePlannerPanel({
       active = false
       window.clearTimeout(timer)
     }
-  }, [endInput, mapboxToken])
+  }, [endInput, maptilerKey])
 
   const handleSubmitPlanner = async (event) => {
     event.preventDefault()
@@ -150,7 +135,7 @@ function RoutePlannerPanel({
   }
 
   return (
-    <div className="glass-card" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+    <div className="glass-card" style={{ borderRadius: '2px', overflow: 'hidden' }}>
       <button
         type="button"
         className="focus-ring"
@@ -179,19 +164,19 @@ function RoutePlannerPanel({
 
       {open ? (
         <div style={{ padding: '0 0.8rem 0.8rem', display: 'grid', gap: '0.62rem' }}>
-          {!mapboxToken ? (
+          {!maptilerKey ? (
             <div
               className="glass-card"
               style={{
-                borderRadius: '10px',
-                borderColor: 'rgba(255, 184, 0, 0.35)',
-                background: 'rgba(255, 184, 0, 0.08)',
-                color: 'var(--accent-amber)',
+                borderRadius: '2px',
+                borderColor: 'rgba(255, 51, 51, 0.34)',
+                background: 'rgba(255, 51, 51, 0.08)',
+                color: 'var(--accent-red)',
                 fontSize: '0.82rem',
                 padding: '0.5rem',
               }}
             >
-              A valid VITE_MAPBOX_TOKEN is required for route planning.
+              A valid VITE_MAPTILER_KEY is required for route planning.
             </div>
           ) : null}
 
@@ -199,7 +184,7 @@ function RoutePlannerPanel({
             <div
               className="glass-card"
               style={{
-                borderRadius: '10px',
+                borderRadius: '2px',
                 borderColor: 'rgba(255, 61, 90, 0.4)',
                 background: 'rgba(255, 61, 90, 0.08)',
                 color: 'var(--accent-red)',
@@ -303,7 +288,7 @@ function RoutePlannerPanel({
                 size="sm"
                 leftIcon={<Navigation size={14} />}
                 isLoading={isPlanning}
-                disabled={!mapboxToken}
+                disabled={!maptilerKey}
               >
                 Plan Route
               </Button>
@@ -325,8 +310,8 @@ function RoutePlannerPanel({
             <div
               className="glass-card"
               style={{
-                borderRadius: '10px',
-                borderColor: 'rgba(0, 212, 255, 0.24)',
+                borderRadius: '2px',
+                borderColor: 'rgba(255, 255, 255, 0.12)',
                 padding: '0.55rem',
                 display: 'grid',
                 gap: '0.3rem',
@@ -360,9 +345,9 @@ function RoutePlannerPanel({
             z-index: 17;
             display: grid;
             gap: 0.28rem;
-            background: rgba(5, 10, 14, 0.96);
-            border: 1px solid rgba(0, 212, 255, 0.3);
-            border-radius: 10px;
+            background: rgba(13, 13, 13, 0.96);
+            border: 1px solid #2a2a2a;
+            border-radius: 2px;
             padding: 0.34rem;
             max-height: 180px;
             overflow-y: auto;
@@ -374,14 +359,14 @@ function RoutePlannerPanel({
             background: transparent;
             color: var(--text-primary);
             text-align: left;
-            border-radius: 8px;
+            border-radius: 2px;
             min-height: 32px;
             padding: 0.34rem 0.45rem;
             font-size: 0.8rem;
           }
 
           .map-geocode-option:hover {
-            background: rgba(0, 212, 255, 0.1);
+            background: rgba(255, 255, 255, 0.06);
           }
         `}
       </style>

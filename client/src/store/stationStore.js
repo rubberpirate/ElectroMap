@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 
+import { getMockStationById } from '../data/mockStations'
 import api from '../services/api'
+import { isMockStationId } from '../utils/mockMode'
 
 export const useStationStore = create((set, get) => ({
   stations: [],
@@ -36,6 +38,12 @@ export const useStationStore = create((set, get) => ({
     set({ isLoading: true })
 
     try {
+      if (isMockStationId(stationId)) {
+        const currentStation = getMockStationById(stationId)
+        set({ currentStation: currentStation || null, isLoading: false })
+        return currentStation || null
+      }
+
       const { data } = await api.get(`/stations/${stationId}`)
       const currentStation = data?.data?.station || data?.data || null
 
@@ -49,6 +57,20 @@ export const useStationStore = create((set, get) => ({
   },
 
   saveStation: async (stationId) => {
+    if (isMockStationId(stationId)) {
+      set((state) => {
+        const key = String(stationId)
+        if (state.savedStations.includes(key)) {
+          return state
+        }
+
+        return {
+          savedStations: [...state.savedStations, key],
+        }
+      })
+      return
+    }
+
     const { data } = await api.post(`/stations/${stationId}/save`)
     const savedStations = data?.data?.savedStations
 
@@ -71,6 +93,12 @@ export const useStationStore = create((set, get) => ({
   },
 
   unsaveStation: async (stationId) => {
+    if (isMockStationId(stationId)) {
+      const updated = get().savedStations.filter((id) => String(id) !== String(stationId))
+      set({ savedStations: updated })
+      return
+    }
+
     const { data } = await api.delete(`/stations/${stationId}/save`)
     const savedStations = data?.data?.savedStations
 

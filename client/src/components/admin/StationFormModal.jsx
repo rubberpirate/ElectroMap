@@ -1,11 +1,11 @@
-import mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import { ImagePlus, MapPin, Plus, Trash2, UploadCloud } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 
 import api from '../../services/api'
-import { getMapboxToken } from '../../utils/mapbox'
+import { getMapTilerKey, getMapTilerStyle } from '../../utils/maptiler'
 import { Button, Input, Modal } from '../ui'
 
 const CHARGER_TYPES = [
@@ -134,11 +134,11 @@ const StepIndicator = ({ step }) => {
             className="glass-card"
             style={{
               borderRadius: '10px',
-              borderColor: active || completed ? 'rgba(0, 212, 255, 0.5)' : 'rgba(0, 212, 255, 0.15)',
+              borderColor: active || completed ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.15)',
               background: active
-                ? 'rgba(0, 212, 255, 0.12)'
+                ? 'rgba(255, 255, 255, 0.12)'
                 : completed
-                  ? 'rgba(0, 212, 255, 0.08)'
+                  ? 'rgba(255, 255, 255, 0.08)'
                   : 'rgba(10, 22, 40, 0.62)',
               padding: '0.45rem',
               textAlign: 'center',
@@ -174,7 +174,7 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDraggingOver, setIsDraggingOver] = useState(false)
 
-  const mapboxToken = getMapboxToken()
+  const maptilerKey = getMapTilerKey()
   const isEdit = mode === 'edit'
 
   const newImagePreviews = useMemo(
@@ -205,21 +205,20 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
   }, [isOpen, station])
 
   useEffect(() => {
-    if (!isOpen || !mapboxToken || !mapContainerRef.current) {
+    if (!isOpen || !maptilerKey || !mapContainerRef.current) {
       return undefined
     }
 
     if (!mapRef.current) {
-      mapboxgl.accessToken = mapboxToken
-
       const lng = Number(form.coordinates.lng) || 78.9629
       const lat = Number(form.coordinates.lat) || 20.5937
 
-      const map = new mapboxgl.Map({
+      const map = new maplibregl.Map({
         container: mapContainerRef.current,
-        style: 'mapbox://styles/mapbox/dark-v11',
+        style: getMapTilerStyle('dark'),
         center: [lng, lat],
         zoom: Number(form.coordinates.lng) && Number(form.coordinates.lat) ? 10.5 : 3.8,
+        projection: 'mercator',
       })
 
       mapRef.current = map
@@ -237,7 +236,7 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
         }))
       })
     }
-  }, [form.coordinates.lat, form.coordinates.lng, isOpen, mapboxToken])
+  }, [form.coordinates.lat, form.coordinates.lng, isOpen, maptilerKey])
 
   useEffect(() => {
     if (isOpen) {
@@ -281,7 +280,7 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
     const coordinates = [lng, lat]
 
     if (!markerRef.current) {
-      markerRef.current = new mapboxgl.Marker({ color: '#00d4ff' })
+      markerRef.current = new maplibregl.Marker({ color: '#ff3333' })
         .setLngLat(coordinates)
         .addTo(map)
     } else {
@@ -637,8 +636,8 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
                 <MapPin size={14} />
                 <strong style={{ fontSize: '0.9rem' }}>Coordinate Picker</strong>
               </div>
-              <div style={{ height: 190, borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(0, 212, 255, 0.2)' }}>
-                {mapboxToken ? (
+              <div style={{ height: 190, borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.2)' }}>
+                {maptilerKey ? (
                   <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
                 ) : (
                   <div
@@ -651,7 +650,7 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
                       fontSize: '0.86rem',
                     }}
                   >
-                    Add a valid VITE_MAPBOX_TOKEN for map click picking.
+                    Add a valid VITE_MAPTILER_KEY for map click picking.
                   </div>
                 )}
               </div>
@@ -716,7 +715,7 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
                         width: '100%',
                         minHeight: 38,
                         borderRadius: '10px',
-                        border: '1px solid rgba(0, 212, 255, 0.26)',
+                        border: '1px solid rgba(255, 255, 255, 0.26)',
                         background: 'rgba(10, 22, 40, 0.72)',
                         paddingInline: '0.55rem',
                       }}
@@ -746,7 +745,7 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
                         width: '100%',
                         minHeight: 38,
                         borderRadius: '10px',
-                        border: '1px solid rgba(0, 212, 255, 0.26)',
+                        border: '1px solid rgba(255, 255, 255, 0.26)',
                         background: 'rgba(10, 22, 40, 0.72)',
                         paddingInline: '0.55rem',
                       }}
@@ -769,7 +768,7 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
                         width: '100%',
                         minHeight: 38,
                         borderRadius: '10px',
-                        border: '1px solid rgba(0, 212, 255, 0.26)',
+                        border: '1px solid rgba(255, 255, 255, 0.26)',
                         background: 'rgba(10, 22, 40, 0.72)',
                         paddingInline: '0.55rem',
                       }}
@@ -881,9 +880,9 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
                 borderStyle: 'dashed',
                 borderWidth: 1,
                 borderColor: isDraggingOver
-                  ? 'rgba(0, 212, 255, 0.6)'
-                  : 'rgba(0, 212, 255, 0.24)',
-                background: isDraggingOver ? 'rgba(0, 212, 255, 0.08)' : 'rgba(10, 22, 40, 0.62)',
+                  ? 'rgba(255, 255, 255, 0.6)'
+                  : 'rgba(255, 255, 255, 0.24)',
+                background: isDraggingOver ? 'rgba(255, 255, 255, 0.08)' : 'rgba(10, 22, 40, 0.62)',
                 minHeight: 110,
                 display: 'grid',
                 placeItems: 'center',
@@ -918,7 +917,7 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
                       borderRadius: '10px',
                       overflow: 'hidden',
                       position: 'relative',
-                      border: '1px solid rgba(0, 212, 255, 0.28)',
+                      border: '1px solid rgba(255, 255, 255, 0.28)',
                     }}
                   >
                     <img
@@ -962,7 +961,7 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
                       borderRadius: '10px',
                       overflow: 'hidden',
                       position: 'relative',
-                      border: '1px solid rgba(0, 212, 255, 0.28)',
+                      border: '1px solid rgba(255, 255, 255, 0.28)',
                     }}
                   >
                     <img
@@ -1007,7 +1006,7 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
                   alignItems: 'center',
                   gap: '0.36rem',
                   color: 'var(--text-secondary)',
-                  borderColor: 'rgba(0, 212, 255, 0.2)',
+                  borderColor: 'rgba(255, 255, 255, 0.2)',
                 }}
               >
                 <ImagePlus size={14} />

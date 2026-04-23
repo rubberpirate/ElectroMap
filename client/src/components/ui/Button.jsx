@@ -6,29 +6,28 @@ import Spinner from './Spinner'
 
 const variantStyles = {
   primary: {
-    background:
-      'linear-gradient(125deg, rgba(0, 212, 255, 0.95), rgba(0, 161, 210, 0.95) 58%, rgba(123, 47, 255, 0.88))',
-    color: '#051017',
-    border: '1px solid rgba(0, 212, 255, 0.5)',
-    boxShadow: '0 12px 34px rgba(0, 212, 255, 0.28)',
+    background: '#1a1a1a',
+    color: '#f0f0f0',
+    border: '1px solid rgba(255, 51, 51, 0.72)',
+    boxShadow: '0 0 0 1px rgba(255, 51, 51, 0.2), 0 6px 18px rgba(0, 0, 0, 0.36)',
   },
   secondary: {
-    background: 'rgba(10, 22, 40, 0.68)',
+    background: '#171717',
     color: 'var(--text-primary)',
     border: '1px solid var(--glass-border-strong)',
-    boxShadow: 'inset 0 0 0 1px rgba(0, 212, 255, 0.15)',
+    boxShadow: 'none',
   },
   ghost: {
     background: 'transparent',
     color: 'var(--text-primary)',
-    border: '1px solid transparent',
+    border: '1px solid var(--border)',
     boxShadow: 'none',
   },
   danger: {
-    background: 'linear-gradient(115deg, rgba(255, 61, 90, 0.9), rgba(160, 28, 62, 0.92))',
-    color: '#fff',
-    border: '1px solid rgba(255, 61, 90, 0.48)',
-    boxShadow: '0 10px 26px rgba(255, 61, 90, 0.24)',
+    background: 'rgba(255, 51, 51, 0.12)',
+    color: '#ffaaaa',
+    border: '1px solid rgba(255, 51, 51, 0.64)',
+    boxShadow: '0 6px 18px rgba(0, 0, 0, 0.28)',
   },
 }
 
@@ -37,21 +36,21 @@ const sizeStyles = {
     height: 36,
     paddingInline: 14,
     fontSize: '0.86rem',
-    borderRadius: '10px',
+    borderRadius: '2px',
     gap: '0.35rem',
   },
   md: {
     height: 44,
     paddingInline: 18,
     fontSize: '0.95rem',
-    borderRadius: '12px',
+    borderRadius: '2px',
     gap: '0.45rem',
   },
   lg: {
     height: 52,
     paddingInline: 24,
     fontSize: '1rem',
-    borderRadius: '14px',
+    borderRadius: '2px',
     gap: '0.5rem',
   },
 }

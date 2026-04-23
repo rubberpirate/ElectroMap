@@ -27,11 +27,13 @@ import AuthModal from '../components/auth/AuthModal'
 import { Navbar, PageWrapper } from '../components/layout'
 import StationCard from '../components/station/StationCard'
 import { Avatar, Badge, Button, Spinner } from '../components/ui'
+import { getMockNearbyStations, getMockStationById } from '../data/mockStations'
 import useAuth from '../hooks/useAuth'
 import useSocket from '../hooks/useSocket'
 import api from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import { useStationStore } from '../store/stationStore'
+import { isMockModeEnabled, isMockStationId } from '../utils/mockMode'
 
 const reviewTagOptions = ['Fast', 'Clean', 'Safe', 'Good Lighting', 'Reliable', 'Accessible']
 
@@ -218,8 +220,11 @@ function StationDetail() {
   const navigate = useNavigate()
   const { socket, isConnected } = useSocket()
   const { isAuthenticated } = useAuth()
+  const authUser = useAuthStore((state) => state.user)
   const saveStation = useStationStore((state) => state.saveStation)
   const unsaveStation = useStationStore((state) => state.unsaveStation)
+  const setSavedStations = useStationStore((state) => state.setSavedStations)
+  const savedStations = useStationStore((state) => state.savedStations)
 
   const [station, setStation] = useState(null)
   const [isLoading, setIsLoading] = useState(() => Boolean(stationId))
@@ -247,6 +252,8 @@ function StationDetail() {
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [pendingAuthAction, setPendingAuthAction] = useState(null)
+
+  const shouldUseMockData = isMockModeEnabled() || isMockStationId(stationId)
 
   const stationCoordinates = getStationCoordinates(station)
 
@@ -343,6 +350,26 @@ function StationDetail() {
       setReviewsError('')
 
       try {
+        if (shouldUseMockData) {
+          const mockReviews = Array.from({ length: 4 }).map((_, index) => ({
+            _id: `mock-review-${stationId}-${index + 1}`,
+            rating: Math.max(3, 5 - (index % 3)),
+            comment: 'Reliable charging session with predictable slot availability.',
+            tags: ['Fast', 'Reliable'],
+            createdAt: new Date(Date.now() - index * 86400000).toISOString(),
+            userId: {
+              _id: `mock-user-${index + 1}`,
+              username: `driver_${index + 1}`,
+              avatar: '',
+            },
+          }))
+
+          setReviewsPage(1)
+          setHasMoreReviews(false)
+          setReviews((current) => (append ? [...current, ...mockReviews] : mockReviews))
+          return
+        }
+
         const { data } = await api.get(`/reviews/station/${stationId}`, {
           params: {
             page,
@@ -383,7 +410,7 @@ function StationDetail() {
         setIsLoadingMoreReviews(false)
       }
     },
-    [stationId],
+    [shouldUseMockData, stationId],
   )
 
   useEffect(() => {
@@ -398,6 +425,21 @@ function StationDetail() {
       setError('')
 
       try {
+        if (shouldUseMockData) {
+          const mockStation = getMockStationById(stationId)
+
+          if (!mockStation?._id) {
+            setError('Station not found.')
+            setStation(null)
+            return
+          }
+
+          setStation(mockStation)
+          setActiveImageIndex(0)
+          setLastAvailabilityUpdate(new Date().toISOString())
+          return
+        }
+
         const { data } = await api.get(`/stations/${stationId}`)
         const stationData = data?.data?.station || null
 
@@ -423,6 +465,15 @@ function StationDetail() {
           return
         }
 
+        const mockStation = getMockStationById(stationId)
+        if (mockStation?._id) {
+          setStation(mockStation)
+          setActiveImageIndex(0)
+          setLastAvailabilityUpdate(new Date().toISOString())
+          setError('')
+          return
+        }
+
         setError(
           requestError?.response?.data?.message ||
             requestError?.message ||
@@ -444,7 +495,7 @@ function StationDetail() {
       isActive = false
       window.clearTimeout(timer)
     }
-  }, [loadReviews, stationId])
+  }, [loadReviews, shouldUseMockData, stationId])
 
   useEffect(() => {
     if (!socket || !station?._id) {
@@ -513,6 +564,21 @@ function StationDetail() {
       try {
         const [lng, lat] = stationCoordinates
 
+        if (shouldUseMockData) {
+          const fallback = getMockNearbyStations({
+            lat,
+            lng,
+            radiusKm: 60,
+            page: 1,
+            limit: 6,
+          })
+          const filtered = (fallback?.stations || []).filter(
+            (item) => String(item?._id) !== String(station?._id),
+          )
+          setNearbyStations(filtered.slice(0, 5))
+          return
+        }
+
         const { data } = await api.get('/stations/nearby', {
           params: {
             lat,
@@ -532,16 +598,24 @@ function StationDetail() {
           (item) => String(item?._id) !== String(station?._id),
         )
         setNearbyStations(filtered.slice(0, 5))
-      } catch (requestError) {
+      } catch {
         if (!isActive) {
           return
         }
 
-        setNearbyError(
-          requestError?.response?.data?.message ||
-            requestError?.message ||
-            'Unable to load nearby stations.',
+        const [lng, lat] = stationCoordinates || []
+        const fallback = getMockNearbyStations({
+          lat,
+          lng,
+          radiusKm: 60,
+          page: 1,
+          limit: 6,
+        })
+        const filtered = (fallback?.stations || []).filter(
+          (item) => String(item?._id) !== String(station?._id),
         )
+        setNearbyStations(filtered.slice(0, 5))
+        setNearbyError('')
       } finally {
         if (isActive) {
           setIsNearbyLoading(false)
@@ -554,7 +628,7 @@ function StationDetail() {
     return () => {
       isActive = false
     }
-  }, [station?._id, stationCoordinates])
+  }, [shouldUseMockData, station?._id, stationCoordinates])
 
   const handleAuthModalClose = () => {
     setPendingAuthAction(null)
@@ -566,9 +640,11 @@ function StationDetail() {
       return
     }
 
-    try {
+    const stationKey = String(station._id)
+
+    if (isMockStationId(stationKey)) {
       if (station?.isSaved) {
-        await unsaveStation(station._id)
+        setSavedStations(savedStations.filter((item) => String(item) !== stationKey))
         setStation((current) => ({
           ...current,
           isSaved: false,
@@ -577,7 +653,29 @@ function StationDetail() {
         return
       }
 
-      await saveStation(station._id)
+      setSavedStations(
+        savedStations.includes(stationKey) ? savedStations : [...savedStations, stationKey],
+      )
+      setStation((current) => ({
+        ...current,
+        isSaved: true,
+      }))
+      toast.success('Saved to favourites')
+      return
+    }
+
+    try {
+      if (station?.isSaved) {
+        await unsaveStation(stationKey)
+        setStation((current) => ({
+          ...current,
+          isSaved: false,
+        }))
+        toast.success('Removed from favourites')
+        return
+      }
+
+      await saveStation(stationKey)
       setStation((current) => ({
         ...current,
         isSaved: true,
@@ -648,11 +746,12 @@ function StationDetail() {
     }
 
     const [lng, lat] = stationCoordinates
-    const mapboxUrl = new URL('https://www.mapbox.com/directions/')
-    mapboxUrl.searchParams.set('destination', `${lat},${lng}`)
-    mapboxUrl.searchParams.set('profile', 'driving')
+    const directionsUrl = new URL('https://www.google.com/maps/dir/')
+    directionsUrl.searchParams.set('api', '1')
+    directionsUrl.searchParams.set('destination', `${lat},${lng}`)
+    directionsUrl.searchParams.set('travelmode', 'driving')
 
-    window.open(mapboxUrl.toString(), '_blank', 'noopener,noreferrer')
+    window.open(directionsUrl.toString(), '_blank', 'noopener,noreferrer')
   }
 
   const handleReviewTagToggle = (tag) => {
@@ -691,6 +790,51 @@ function StationDetail() {
     setIsSubmittingReview(true)
 
     try {
+      if (isMockStationId(station._id)) {
+        const createdReview = {
+          _id: `mock-review-${station._id}-${Date.now()}`,
+          rating: Number(reviewForm.rating),
+          comment: reviewForm.comment.trim(),
+          tags: [...reviewForm.tags],
+          createdAt: new Date().toISOString(),
+          userId: {
+            _id: authUser?._id || 'mock-user-auth',
+            username: authUser?.username || 'You',
+            avatar: authUser?.avatar || '',
+          },
+        }
+
+        setReviews((current) => [createdReview, ...current])
+        setStation((current) => {
+          if (!current) {
+            return current
+          }
+
+          const previousCount = Number(current.totalReviews) || 0
+          const previousAverage = Number(current.rating) || 0
+          const nextCount = previousCount + 1
+          const nextAverage =
+            nextCount > 0
+              ? (previousAverage * previousCount + Number(reviewForm.rating)) / nextCount
+              : Number(reviewForm.rating)
+
+          return {
+            ...current,
+            rating: Number(nextAverage.toFixed(2)),
+            totalReviews: nextCount,
+          }
+        })
+
+        setReviewForm({
+          rating: 5,
+          comment: '',
+          tags: [],
+        })
+        setShowReviewForm(false)
+        toast.success('Review submitted successfully.')
+        return
+      }
+
       const { data } = await api.post(`/reviews/station/${station._id}`, {
         rating: Number(reviewForm.rating),
         comment: reviewForm.comment.trim(),
@@ -822,7 +966,7 @@ function StationDetail() {
                             position: 'absolute',
                             inset: 0,
                             background:
-                              'linear-gradient(145deg, rgba(0, 212, 255, 0.22), rgba(123, 47, 255, 0.25))',
+                              'linear-gradient(145deg, rgba(255, 255, 255, 0.22), rgba(255, 51, 51, 0.25))',
                             display: 'grid',
                             placeItems: 'center',
                             fontFamily: 'Syne, sans-serif',
@@ -898,7 +1042,7 @@ function StationDetail() {
                           className="focus-ring"
                           onClick={() => setActiveImageIndex(index)}
                           style={{
-                            border: index === safeImageIndex ? '1px solid rgba(0, 212, 255, 0.66)' : '1px solid rgba(0, 212, 255, 0.2)',
+                            border: index === safeImageIndex ? '1px solid rgba(255, 255, 255, 0.66)' : '1px solid rgba(255, 255, 255, 0.2)',
                             borderRadius: '10px',
                             overflow: 'hidden',
                             padding: 0,
@@ -936,7 +1080,7 @@ function StationDetail() {
                     className="glass-card"
                     style={{
                       borderRadius: '12px',
-                      borderColor: 'rgba(0, 212, 255, 0.24)',
+                      borderColor: 'rgba(255, 255, 255, 0.24)',
                       padding: '0.78rem',
                       display: 'grid',
                       gap: '0.55rem',
@@ -1029,7 +1173,7 @@ function StationDetail() {
                           display: 'grid',
                           placeItems: 'center',
                           background: 'rgba(5, 10, 14, 0.88)',
-                          border: '1px solid rgba(0, 212, 255, 0.2)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
                         }}
                       >
                         {availabilityPercent}%
@@ -1062,7 +1206,7 @@ function StationDetail() {
                           className="glass-card"
                           style={{
                             borderRadius: '12px',
-                            borderColor: 'rgba(0, 212, 255, 0.2)',
+                            borderColor: 'rgba(255, 255, 255, 0.2)',
                             padding: '0.58rem',
                             display: 'grid',
                             gap: '0.25rem',
@@ -1169,7 +1313,7 @@ function StationDetail() {
                         className="glass-card"
                         style={{
                           borderRadius: '12px',
-                          borderColor: 'rgba(0, 212, 255, 0.2)',
+                          borderColor: 'rgba(255, 255, 255, 0.2)',
                           padding: '0.62rem',
                           display: 'inline-flex',
                           gap: '0.42rem',
@@ -1266,7 +1410,7 @@ function StationDetail() {
                     exit={{ opacity: 0, y: -8 }}
                     onSubmit={handleSubmitReview}
                     style={{
-                      border: '1px solid rgba(0, 212, 255, 0.24)',
+                      border: '1px solid rgba(255, 255, 255, 0.24)',
                       borderRadius: '12px',
                       padding: '0.8rem',
                       display: 'grid',
@@ -1319,10 +1463,10 @@ function StationDetail() {
                               style={{
                                 borderRadius: '999px',
                                 border: active
-                                  ? '1px solid rgba(0, 212, 255, 0.62)'
-                                  : '1px solid rgba(0, 212, 255, 0.24)',
+                                  ? '1px solid rgba(255, 255, 255, 0.62)'
+                                  : '1px solid rgba(255, 255, 255, 0.24)',
                                 background: active
-                                  ? 'rgba(0, 212, 255, 0.14)'
+                                  ? 'rgba(255, 255, 255, 0.14)'
                                   : 'rgba(10, 22, 40, 0.72)',
                                 color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
                                 fontSize: '0.78rem',
@@ -1353,7 +1497,7 @@ function StationDetail() {
                           marginTop: '0.35rem',
                           width: '100%',
                           borderRadius: '10px',
-                          border: '1px solid rgba(0, 212, 255, 0.26)',
+                          border: '1px solid rgba(255, 255, 255, 0.26)',
                           background: 'rgba(10, 22, 40, 0.72)',
                           padding: '0.55rem',
                           resize: 'vertical',
@@ -1394,7 +1538,7 @@ function StationDetail() {
                       className="glass-card"
                       style={{
                         borderRadius: '12px',
-                        borderColor: 'rgba(0, 212, 255, 0.2)',
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
                         padding: '0.75rem',
                         display: 'grid',
                         gap: '0.45rem',
@@ -1524,7 +1668,7 @@ function StationDetail() {
 
           .chargers-table-shell {
             overflow-x: auto;
-            border: 1px solid rgba(0, 212, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 12px;
           }
 

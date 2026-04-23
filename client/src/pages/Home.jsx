@@ -14,17 +14,23 @@ import {
 	Wifi,
 	Zap,
 } from 'lucide-react'
-import mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
-import { GradientText, Particles, SplitText, StarBorder, TiltedCard } from '../components/effects'
+import {
+	Dither,
+	GradientText,
+	SplitText,
+	StarBorder,
+	TiltedCard,
+} from '../components/effects'
 import { Footer, Navbar, PageWrapper } from '../components/layout'
 import { Button, Card } from '../components/ui'
 import useGeolocation from '../hooks/useGeolocation'
 import api from '../services/api'
-import { getMapboxToken } from '../utils/mapbox'
+import { getMapTilerKey, getMapTilerStyle } from '../utils/maptiler'
 
 const heroStats = [
 	{ label: 'Stations', value: 1000, suffix: '+' },
@@ -170,20 +176,19 @@ function MiniMapPreview() {
 	const mapContainerRef = useRef(null)
 	const mapRef = useRef(null)
 	const markerRefs = useRef([])
-	const mapboxToken = getMapboxToken()
+	const maptilerKey = getMapTilerKey()
 
 	useEffect(() => {
-		if (!mapContainerRef.current || mapRef.current || !mapboxToken) {
+		if (!mapContainerRef.current || mapRef.current || !maptilerKey) {
 			return undefined
 		}
 
-		mapboxgl.accessToken = mapboxToken
-
-		const map = new mapboxgl.Map({
+		const map = new maplibregl.Map({
 			container: mapContainerRef.current,
-			style: 'mapbox://styles/mapbox/dark-v11',
+			style: getMapTilerStyle('dark'),
 			center: [78.9629, 20.5937],
 			zoom: 3.95,
+			projection: 'mercator',
 			dragPan: false,
 			boxZoom: false,
 			scrollZoom: false,
@@ -208,7 +213,7 @@ function MiniMapPreview() {
 					markerNode.style.background = 'var(--accent-secondary)'
 				}
 
-				const marker = new mapboxgl.Marker({ element: markerNode, anchor: 'center' })
+				const marker = new maplibregl.Marker({ element: markerNode, anchor: 'center' })
 					.setLngLat(station.coordinates)
 					.addTo(map)
 
@@ -222,9 +227,9 @@ function MiniMapPreview() {
 			map.remove()
 			mapRef.current = null
 		}
-	}, [mapboxToken])
+	}, [maptilerKey])
 
-	if (!mapboxToken) {
+	if (!maptilerKey) {
 		return (
 			<div
 				className="glass-card"
@@ -237,7 +242,7 @@ function MiniMapPreview() {
 					textAlign: 'center',
 				}}
 			>
-				Add a valid VITE_MAPBOX_TOKEN to enable map preview.
+				Add a valid VITE_MAPTILER_KEY to enable map preview.
 			</div>
 		)
 	}
@@ -266,24 +271,24 @@ function EVVisual() {
 			<svg width="100%" viewBox="0 0 560 320" fill="none" aria-label="Electric vehicle illustration">
 				<defs>
 					<linearGradient id="ev-gradient" x1="0" y1="0" x2="1" y2="1">
-						<stop offset="0%" stopColor="#00d4ff" stopOpacity="0.95" />
-						<stop offset="100%" stopColor="#7b2fff" stopOpacity="0.95" />
+						<stop offset="0%" stopColor="#f0f0f0" stopOpacity="0.95" />
+						<stop offset="100%" stopColor="#ff3333" stopOpacity="0.95" />
 					</linearGradient>
 				</defs>
-				<rect x="28" y="220" width="500" height="10" rx="5" fill="rgba(0, 212, 255, 0.24)" />
+				<rect x="28" y="220" width="500" height="10" rx="5" fill="rgba(255, 255, 255, 0.24)" />
 				<path
 					d="M120 204h310c15 0 28-11 30-26l10-71c2-16-10-31-27-31H213c-12 0-23 6-29 15l-76 113h12z"
 					fill="url(#ev-gradient)"
 					opacity="0.9"
 				/>
 				<path d="M192 94h195c8 0 14 7 13 15l-5 38H163l21-38c2-4 5-6 8-6z" fill="#06182d" />
-				<circle cx="193" cy="214" r="38" fill="#041423" stroke="#00d4ff" strokeWidth="8" />
-				<circle cx="412" cy="214" r="38" fill="#041423" stroke="#7b2fff" strokeWidth="8" />
-				<circle cx="193" cy="214" r="11" fill="#00d4ff" opacity="0.55" />
-				<circle cx="412" cy="214" r="11" fill="#7b2fff" opacity="0.55" />
-				<path d="M440 55h48v48h-18V73h-30z" stroke="#00d4ff" strokeWidth="6" strokeLinecap="round" />
-				<path d="M452 101v25" stroke="#00d4ff" strokeWidth="6" strokeLinecap="round" />
-				<path d="M473 101v25" stroke="#00d4ff" strokeWidth="6" strokeLinecap="round" />
+				<circle cx="193" cy="214" r="38" fill="#041423" stroke="#f0f0f0" strokeWidth="8" />
+				<circle cx="412" cy="214" r="38" fill="#041423" stroke="#ff3333" strokeWidth="8" />
+				<circle cx="193" cy="214" r="11" fill="#f0f0f0" opacity="0.55" />
+				<circle cx="412" cy="214" r="11" fill="#ff3333" opacity="0.55" />
+				<path d="M440 55h48v48h-18V73h-30z" stroke="#f0f0f0" strokeWidth="6" strokeLinecap="round" />
+				<path d="M452 101v25" stroke="#f0f0f0" strokeWidth="6" strokeLinecap="round" />
+				<path d="M473 101v25" stroke="#f0f0f0" strokeWidth="6" strokeLinecap="round" />
 			</svg>
 		</div>
 	)
@@ -395,7 +400,27 @@ function Home() {
 					paddingTop: '4.5rem',
 				}}
 			>
-				<Particles />
+				<div
+					aria-hidden="true"
+					style={{
+						position: 'absolute',
+						inset: 0,
+						opacity: 0.6,
+						pointerEvents: 'none',
+					}}
+				>
+					<Dither
+						waveColor={[0.45, 0.45, 0.45]}
+						disableAnimation={false}
+						enableMouseInteraction={false}
+						mouseRadius={0.35}
+						colorNum={4}
+						waveAmplitude={0.28}
+						waveFrequency={2.8}
+						waveSpeed={0.04}
+						pixelSize={2}
+					/>
+				</div>
 				<div className="scanline-overlay" aria-hidden="true" />
 
 				<div className="container-shell" style={{ position: 'relative', zIndex: 2 }}>
@@ -496,7 +521,7 @@ function Home() {
 							<div
 								key={item.label}
 								style={{
-									borderLeft: '2px solid rgba(0, 212, 255, 0.34)',
+									borderLeft: '2px solid rgba(255, 255, 255, 0.34)',
 									paddingLeft: '0.72rem',
 								}}
 							>
@@ -731,7 +756,7 @@ function Home() {
 							borderRadius: 'var(--radius-lg)',
 							padding: 'clamp(1.4rem, 4vw, 2.5rem)',
 							background:
-								'linear-gradient(120deg, rgba(0, 212, 255, 0.25), rgba(14, 63, 107, 0.56), rgba(123, 47, 255, 0.32))',
+								'linear-gradient(120deg, rgba(255, 255, 255, 0.25), rgba(14, 63, 107, 0.56), rgba(255, 51, 51, 0.32))',
 						}}
 					>
 						<div className="noise-overlay" aria-hidden="true" />

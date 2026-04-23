@@ -46,7 +46,7 @@ const drawRouteVisuals = (map, routeGeoJSON) => {
         'line-cap': 'round',
       },
       paint: {
-        'line-color': '#00d4ff',
+        'line-color': '#f0f0f0',
         'line-width': 10,
         'line-opacity': 0.25,
         'line-blur': 1,
@@ -64,7 +64,7 @@ const drawRouteVisuals = (map, routeGeoJSON) => {
         'line-cap': 'round',
       },
       paint: {
-        'line-color': '#7fdfff',
+        'line-color': '#f0f0f0',
         'line-width': 4,
         'line-opacity': 0.95,
       },
@@ -88,10 +88,10 @@ function RouteLayer({ map, routeGeoJSON }) {
     }
 
     redraw()
-    map.on('style.load', redraw)
+    map.on('styledata', redraw)
 
     return () => {
-      map.off('style.load', redraw)
+      map.off('styledata', redraw)
       if (!routeGeoJSON) {
         removeRouteVisuals(map)
       }

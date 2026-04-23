@@ -20,7 +20,7 @@ function StarBorder({ children, className, contentClassName, animated = true }) 
             position: 'absolute',
             inset: '-50%',
             background:
-              'conic-gradient(from 0deg, rgba(0, 212, 255, 0) 0deg, rgba(0, 212, 255, 0.9) 95deg, rgba(123, 47, 255, 0.85) 180deg, rgba(0, 212, 255, 0) 260deg)',
+              'conic-gradient(from 0deg, rgba(255, 255, 255, 0) 0deg, rgba(255, 255, 255, 0.9) 95deg, rgba(255, 51, 51, 0.85) 180deg, rgba(255, 255, 255, 0) 260deg)',
             filter: 'blur(2px)',
           }}
           animate={{ rotate: 360 }}

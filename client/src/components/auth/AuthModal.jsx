@@ -234,7 +234,7 @@ function AuthModal({
             display: 'grid',
             gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
             gap: '0.4rem',
-            border: '1px solid rgba(0, 212, 255, 0.18)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
             borderRadius: '12px',
             padding: '0.3rem',
             background: 'rgba(10, 22, 40, 0.6)',
@@ -249,7 +249,7 @@ function AuthModal({
               borderRadius: '9px',
               border: 'none',
               background:
-                tab === 'login' ? 'rgba(0, 212, 255, 0.18)' : 'transparent',
+                tab === 'login' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
               color: tab === 'login' ? 'var(--text-primary)' : 'var(--text-secondary)',
             }}
           >
@@ -264,7 +264,7 @@ function AuthModal({
               borderRadius: '9px',
               border: 'none',
               background:
-                tab === 'register' ? 'rgba(0, 212, 255, 0.18)' : 'transparent',
+                tab === 'register' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
               color:
                 tab === 'register' ? 'var(--text-primary)' : 'var(--text-secondary)',
             }}

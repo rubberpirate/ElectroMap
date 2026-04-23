@@ -29,9 +29,11 @@ import {
   YAxis,
 } from 'recharts'
 
+import { getMockStationById } from '../../data/mockStations'
 import api from '../../services/api'
 import { useAuthStore } from '../../store/authStore'
 import { useStationStore } from '../../store/stationStore'
+import { isMockModeEnabled, isMockStationId } from '../../utils/mockMode'
 import AuthModal from '../auth/AuthModal'
 import { Avatar, Badge, Button, Spinner } from '../ui'
 
@@ -51,6 +53,20 @@ const amenityIconMap = {
   cafe: Car,
   security: Shield,
 }
+
+const createMockReviews = (stationId) =>
+  Array.from({ length: 4 }).map((_, index) => ({
+    _id: `mock-drawer-review-${stationId}-${index + 1}`,
+    rating: Math.max(3, 5 - (index % 3)),
+    comment: 'Reliable charging session with predictable slot availability.',
+    tags: ['Fast', 'Reliable'],
+    createdAt: new Date(Date.now() - index * 86400000).toISOString(),
+    userId: {
+      _id: `mock-user-${index + 1}`,
+      username: `driver_${index + 1}`,
+      avatar: '',
+    },
+  }))
 
 const normalizeAmenityKey = (value) => String(value || '').trim().toLowerCase()
 
@@ -153,8 +169,13 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
   const [pendingAuthAction, setPendingAuthAction] = useState(null)
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const authUser = useAuthStore((state) => state.user)
   const saveStation = useStationStore((state) => state.saveStation)
   const unsaveStation = useStationStore((state) => state.unsaveStation)
+  const setSavedStations = useStationStore((state) => state.setSavedStations)
+  const savedStations = useStationStore((state) => state.savedStations)
+
+  const shouldUseMockData = isMockModeEnabled() || isMockStationId(stationId)
 
   const requestAuthAction = (action) => {
     setPendingAuthAction(action)
@@ -166,9 +187,11 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
       return
     }
 
-    try {
+    const stationKey = String(station._id)
+
+    if (isMockStationId(stationKey)) {
       if (station?.isSaved) {
-        await unsaveStation(station._id)
+        setSavedStations(savedStations.filter((item) => String(item) !== stationKey))
         setStation((current) => ({
           ...current,
           isSaved: false,
@@ -177,7 +200,29 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
         return
       }
 
-      await saveStation(station._id)
+      setSavedStations(
+        savedStations.includes(stationKey) ? savedStations : [...savedStations, stationKey],
+      )
+      setStation((current) => ({
+        ...current,
+        isSaved: true,
+      }))
+      toast.success('Saved to favourites')
+      return
+    }
+
+    try {
+      if (station?.isSaved) {
+        await unsaveStation(stationKey)
+        setStation((current) => ({
+          ...current,
+          isSaved: false,
+        }))
+        toast.success('Removed from favourites')
+        return
+      }
+
+      await saveStation(stationKey)
       setStation((current) => ({
         ...current,
         isSaved: true,
@@ -244,6 +289,30 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
       setError('')
 
       try {
+        if (shouldUseMockData) {
+          const mockStation = getMockStationById(stationId)
+
+          if (!mockStation?._id) {
+            setError('Station not found.')
+            setStation(null)
+            setReviews([])
+            return
+          }
+
+          if (!isActive) {
+            return
+          }
+
+          const savedSet = new Set((savedStations || []).map((item) => String(item)))
+          setStation({
+            ...mockStation,
+            isSaved: savedSet.has(String(mockStation._id)),
+          })
+          setReviews(createMockReviews(stationId))
+          setActiveImageIndex(0)
+          return
+        }
+
         const [stationResponse, reviewResponse] = await Promise.all([
           api.get(`/stations/${stationId}`),
           api.get(`/reviews/station/${stationId}`, {
@@ -271,6 +340,19 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
           return
         }
 
+        const mockStation = getMockStationById(stationId)
+        if (mockStation?._id) {
+          const savedSet = new Set((savedStations || []).map((item) => String(item)))
+          setStation({
+            ...mockStation,
+            isSaved: savedSet.has(String(mockStation._id)),
+          })
+          setReviews(createMockReviews(stationId))
+          setActiveImageIndex(0)
+          setError('')
+          return
+        }
+
         setError(
           requestError?.response?.data?.message ||
             requestError?.message ||
@@ -288,10 +370,10 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
     return () => {
       isActive = false
     }
-  }, [isOpen, stationId])
+  }, [isOpen, savedStations, shouldUseMockData, stationId])
 
   useEffect(() => {
-    if (!socket || !isOpen || !stationId) {
+    if (!socket || !isOpen || !stationId || shouldUseMockData) {
       return undefined
     }
 
@@ -337,7 +419,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
       socket.emit('unsubscribe:station', stationId)
       socket.off('charger:status_update', handleChargerStatusUpdate)
     }
-  }, [isOpen, socket, stationId])
+  }, [isOpen, shouldUseMockData, socket, stationId])
 
   const handleToggleSavedStation = async () => {
     if (!station?._id) {
@@ -443,6 +525,31 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
     setIsSubmittingReview(true)
 
     try {
+      if (isMockStationId(station._id)) {
+        const mockReview = {
+          _id: `mock-review-${station._id}-${Date.now()}`,
+          rating: Number(reviewForm.rating),
+          comment: reviewForm.comment.trim(),
+          tags: [...reviewForm.tags],
+          createdAt: new Date().toISOString(),
+          userId: {
+            _id: authUser?._id || 'mock-user-auth',
+            username: authUser?.username || 'You',
+            avatar: authUser?.avatar || '',
+          },
+        }
+
+        setReviews((current) => [mockReview, ...current].slice(0, 20))
+        setReviewForm({
+          rating: 5,
+          tags: [],
+          comment: '',
+        })
+        setShowReviewForm(false)
+        toast.success('Review submitted.')
+        return
+      }
+
       const { data } = await api.post(`/reviews/station/${station._id}`, {
         rating: reviewForm.rating,
         comment: reviewForm.comment.trim(),
@@ -706,7 +813,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                         <div
                           key={charger._id || `${station._id}-charger-${index}`}
                           style={{
-                            border: '1px solid rgba(0, 212, 255, 0.2)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
                             borderRadius: '10px',
                             padding: '0.55rem',
                             display: 'grid',
@@ -782,7 +889,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                               key={`${station._id}-${amenity}`}
                               className="chip"
                               style={{
-                                borderColor: 'rgba(0, 212, 255, 0.25)',
+                                borderColor: 'rgba(255, 255, 255, 0.25)',
                                 background: 'rgba(10, 22, 40, 0.78)',
                               }}
                             >
@@ -843,10 +950,10 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                               tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
                             />
                             <Tooltip
-                              cursor={{ fill: 'rgba(0, 212, 255, 0.08)' }}
+                              cursor={{ fill: 'rgba(255, 255, 255, 0.08)' }}
                               contentStyle={{
                                 background: 'rgba(5, 10, 14, 0.95)',
-                                border: '1px solid rgba(0, 212, 255, 0.3)',
+                                border: '1px solid rgba(255, 255, 255, 0.3)',
                               }}
                             />
                             <Bar dataKey="value" fill="var(--accent-primary)" radius={[4, 4, 4, 4]} />
@@ -857,7 +964,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
 
                     <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.65rem' }}>
                       {reviews.slice(0, 5).map((review) => (
-                        <div key={review._id} style={{ border: '1px solid rgba(0, 212, 255, 0.2)', borderRadius: '10px', padding: '0.55rem' }}>
+                        <div key={review._id} style={{ border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '10px', padding: '0.55rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.55rem' }}>
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
                               <Avatar
@@ -912,7 +1019,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                           onSubmit={handleSubmitReview}
                           style={{
                             marginTop: '0.75rem',
-                            border: '1px solid rgba(0, 212, 255, 0.22)',
+                            border: '1px solid rgba(255, 255, 255, 0.22)',
                             borderRadius: '12px',
                             padding: '0.75rem',
                             display: 'grid',
@@ -965,10 +1072,10 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                                     style={{
                                       borderRadius: '999px',
                                       border: active
-                                        ? '1px solid rgba(0, 212, 255, 0.62)'
-                                        : '1px solid rgba(0, 212, 255, 0.24)',
+                                        ? '1px solid rgba(255, 255, 255, 0.62)'
+                                        : '1px solid rgba(255, 255, 255, 0.24)',
                                       background: active
-                                        ? 'rgba(0, 212, 255, 0.14)'
+                                        ? 'rgba(255, 255, 255, 0.14)'
                                         : 'rgba(10, 22, 40, 0.72)',
                                       color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
                                       fontSize: '0.78rem',
@@ -1001,7 +1108,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                                 marginTop: '0.35rem',
                                 width: '100%',
                                 borderRadius: '10px',
-                                border: '1px solid rgba(0, 212, 255, 0.26)',
+                                border: '1px solid rgba(255, 255, 255, 0.26)',
                                 background: 'rgba(10, 22, 40, 0.72)',
                                 padding: '0.55rem',
                                 resize: 'vertical',

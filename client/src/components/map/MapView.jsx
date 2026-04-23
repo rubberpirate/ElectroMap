@@ -1,9 +1,9 @@
-import mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import Supercluster from 'supercluster'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { getMapboxToken } from '../../utils/mapbox'
+import { getMapTilerKey, getMapTilerStyle } from '../../utils/maptiler'
 import RouteLayer from './RouteLayer'
 import {
   applyMarkerHighlightState,
@@ -13,8 +13,6 @@ import {
 } from './StationMarker'
 
 const INDIA_CENTER = [78.9629, 20.5937]
-const DARK_STYLE_URL = 'mapbox://styles/mapbox/dark-v11'
-const SATELLITE_STYLE_URL = 'mapbox://styles/mapbox/satellite-streets-v12'
 
 const getStationCoordinates = (station) => {
   const coordinates = station?.location?.coordinates
@@ -66,14 +64,13 @@ const haversineDistanceKm = (from, to) => {
   return earthRadiusKm * c
 }
 
-const getMapStyleUrl = (mapStyle) =>
-  mapStyle === 'satellite' ? SATELLITE_STYLE_URL : DARK_STYLE_URL
-
 function MapView({
   stations,
   selectedStation,
   highlightedStationId,
   userLocation,
+  mapCenter,
+  mapZoom,
   mapStyle,
   routeGeoJSON,
   routePlannerStops = [],
@@ -90,8 +87,9 @@ function MapView({
   const clusterMarkersRef = useRef([])
   const routePlannerMarkersRef = useRef([])
   const viewportDebounceRef = useRef(null)
-  const mapStyleRef = useRef(getMapStyleUrl(mapStyle))
+  const mapStyleRef = useRef('')
   const hasCenteredOnUserRef = useRef(false)
+  const hasAutoFitStationsRef = useRef(false)
   const initialUserLocationRef = useRef(userLocation)
 
   const onStationSelectRef = useRef(onStationSelect)
@@ -105,9 +103,9 @@ function MapView({
   const [mapInstance, setMapInstance] = useState(null)
   const [mapError, setMapError] = useState('')
 
-  const mapboxToken = getMapboxToken()
-  const tokenError = !mapboxToken
-    ? 'A valid VITE_MAPBOX_TOKEN is required to render the map.'
+  const maptilerKey = getMapTilerKey()
+  const tokenError = !maptilerKey
+    ? 'A valid VITE_MAPTILER_KEY is required to render the map.'
     : ''
 
   const clusterEngineRef = useRef(
@@ -176,7 +174,7 @@ function MapView({
 
       markerElement.appendChild(centerDot)
 
-      userMarkerRef.current = new mapboxgl.Marker({
+      userMarkerRef.current = new maplibregl.Marker({
         element: markerElement,
         anchor: 'center',
       })
@@ -299,7 +297,7 @@ function MapView({
           })
         })
 
-        const clusterMarker = new mapboxgl.Marker({
+        const clusterMarker = new maplibregl.Marker({
           element: clusterElement,
           anchor: 'center',
         })
@@ -352,7 +350,7 @@ function MapView({
         markerElement.addEventListener('mouseleave', onMouseLeave)
         markerElement.addEventListener('click', onClick)
 
-        const marker = new mapboxgl.Marker({
+        const marker = new maplibregl.Marker({
           element: markerElement,
           anchor: 'center',
         })
@@ -481,7 +479,7 @@ function MapView({
         })
       }
 
-      const marker = new mapboxgl.Marker({
+      const marker = new maplibregl.Marker({
         element: markerElement,
         anchor: 'center',
       })
@@ -505,35 +503,42 @@ function MapView({
       return undefined
     }
 
-    if (!mapboxToken) {
+    if (!maptilerKey) {
       return undefined
     }
 
-    mapboxgl.accessToken = mapboxToken
+    const initialStyle = getMapTilerStyle(mapStyle)
+    mapStyleRef.current = initialStyle
+    const centerLng = Number(mapCenter?.[0])
+    const centerLat = Number(mapCenter?.[1])
+    const hasMapCenter = Number.isFinite(centerLng) && Number.isFinite(centerLat)
 
     const initialCenter = initialUserLocationRef.current
       ? [
           Number(initialUserLocationRef.current.lng),
           Number(initialUserLocationRef.current.lat),
         ]
-      : INDIA_CENTER
+      : hasMapCenter
+        ? [centerLng, centerLat]
+        : INDIA_CENTER
 
-    const map = new mapboxgl.Map({
+    const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: mapStyleRef.current,
       center: initialCenter,
-      zoom: initialUserLocationRef.current ? 11.8 : 5,
+      zoom: initialUserLocationRef.current ? 11.8 : Number(mapZoom) || 5,
       minZoom: 3,
+      projection: 'mercator',
       antialias: true,
       attributionControl: false,
     })
 
     mapRef.current = map
 
-    const navigationControl = new mapboxgl.NavigationControl({ showCompass: true })
+    const navigationControl = new maplibregl.NavigationControl({ showCompass: true })
     map.addControl(navigationControl, 'top-right')
 
-    const geolocateControl = new mapboxgl.GeolocateControl({
+    const geolocateControl = new maplibregl.GeolocateControl({
       positionOptions: {
         enableHighAccuracy: true,
       },
@@ -544,7 +549,7 @@ function MapView({
     })
 
     map.addControl(geolocateControl, 'top-right')
-    map.addControl(new mapboxgl.ScaleControl({ maxWidth: 120, unit: 'metric' }), 'bottom-right')
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }), 'bottom-right')
 
     const handleGeolocate = (event) => {
       const nextLocation = {
@@ -586,7 +591,7 @@ function MapView({
     map.on('load', handleMapLoad)
     map.on('moveend', handleMapUpdate)
     map.on('zoomend', handleMapUpdate)
-    map.on('style.load', handleMapUpdate)
+    map.on('styledata', handleMapUpdate)
     map.on('error', handleMapError)
 
     return () => {
@@ -594,7 +599,7 @@ function MapView({
       map.off('load', handleMapLoad)
       map.off('moveend', handleMapUpdate)
       map.off('zoomend', handleMapUpdate)
-      map.off('style.load', handleMapUpdate)
+      map.off('styledata', handleMapUpdate)
       map.off('error', handleMapError)
 
       cleanupClusterMarkers()
@@ -620,7 +625,10 @@ function MapView({
     cleanupClusterMarkers,
     cleanupRoutePlannerMarkers,
     ensureUserMarker,
-    mapboxToken,
+    mapCenter,
+    mapStyle,
+    mapZoom,
+    maptilerKey,
   ])
 
   useEffect(() => {
@@ -655,11 +663,87 @@ function MapView({
   useEffect(() => {
     const map = mapRef.current
 
+    if (!map || selectedStation?._id) {
+      return
+    }
+
+    const centerLng = Number(mapCenter?.[0])
+    const centerLat = Number(mapCenter?.[1])
+
+    if (!Number.isFinite(centerLng) || !Number.isFinite(centerLat)) {
+      return
+    }
+
+    const currentCenter = map.getCenter()
+    const centerChanged =
+      Math.abs(Number(currentCenter.lng) - centerLng) > 0.00001 ||
+      Math.abs(Number(currentCenter.lat) - centerLat) > 0.00001
+
+    if (!centerChanged) {
+      return
+    }
+
+    const nextZoom = Number(mapZoom)
+    map.easeTo({
+      center: [centerLng, centerLat],
+      zoom: Number.isFinite(nextZoom) ? nextZoom : map.getZoom(),
+      duration: 420,
+      essential: true,
+    })
+  }, [mapCenter, mapZoom, selectedStation?._id])
+
+  useEffect(() => {
+    const map = mapRef.current
+
+    if (!map || !map.isStyleLoaded() || selectedStation?._id || userLocation) {
+      return
+    }
+
+    if (hasAutoFitStationsRef.current) {
+      return
+    }
+
+    const coordinates = (stations || [])
+      .map((station) => getStationCoordinates(station))
+      .filter(Boolean)
+
+    if (!coordinates.length) {
+      return
+    }
+
+    hasAutoFitStationsRef.current = true
+
+    if (coordinates.length === 1) {
+      map.easeTo({
+        center: coordinates[0],
+        zoom: Math.max(map.getZoom(), 12),
+        duration: 480,
+        essential: true,
+      })
+      return
+    }
+
+    const bounds = new maplibregl.LngLatBounds()
+    coordinates.forEach((coordinate) => {
+      bounds.extend(coordinate)
+    })
+
+    map.fitBounds(bounds, {
+      padding: { top: 90, right: 90, bottom: 90, left: 90 },
+      maxZoom: 12.5,
+      duration: 520,
+      essential: true,
+    })
+  }, [selectedStation?._id, stations, userLocation])
+
+  useEffect(() => {
+    const map = mapRef.current
+
     if (!map) {
       return
     }
 
-    const nextStyle = getMapStyleUrl(mapStyle)
+    const nextStyle = getMapTilerStyle(mapStyle)
 
     if (mapStyleRef.current === nextStyle) {
       return
@@ -667,7 +751,7 @@ function MapView({
 
     mapStyleRef.current = nextStyle
     map.setStyle(nextStyle)
-  }, [mapStyle])
+  }, [mapStyle, maptilerKey])
 
   useEffect(() => {
     const map = mapRef.current
@@ -711,7 +795,7 @@ function MapView({
             top: '0.8rem',
             zIndex: 4,
             maxWidth: 320,
-            borderRadius: '12px',
+            borderRadius: '2px',
             padding: '0.7rem 0.8rem',
             color: 'var(--accent-red)',
           }}
@@ -724,29 +808,29 @@ function MapView({
 
       <style>
         {`
-          .electromap-map-root .mapboxgl-ctrl-group {
-            border: 1px solid rgba(0, 212, 255, 0.24);
-            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
-            background: rgba(7, 14, 24, 0.88);
+          .electromap-map-root .maplibregl-ctrl-group {
+            border: 1px solid #2a2a2a;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+            background: rgba(18, 18, 18, 0.92);
           }
 
-          .electromap-map-root .mapboxgl-ctrl button span {
-            filter: invert(0.95);
+          .electromap-map-root .maplibregl-ctrl button .maplibregl-ctrl-icon {
+            filter: invert(0.88);
           }
 
-          .electromap-map-root .mapboxgl-ctrl-scale {
-            border: 1px solid rgba(0, 212, 255, 0.35);
-            background: rgba(7, 14, 24, 0.78);
-            color: #dff8ff;
+          .electromap-map-root .maplibregl-ctrl-scale {
+            border: 1px solid #2a2a2a;
+            background: rgba(18, 18, 18, 0.9);
+            color: #f0f0f0;
           }
 
           .electromap-map-root .electromap-user-marker {
             width: 18px;
             height: 18px;
             border-radius: 999px;
-            background: rgba(0, 212, 255, 0.22);
-            border: 1px solid rgba(127, 223, 255, 0.9);
-            box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.45);
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.82);
+            box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.25);
             display: grid;
             place-items: center;
             animation: pulse-glow 1.9s ease-in-out infinite;
@@ -756,7 +840,7 @@ function MapView({
             width: 8px;
             height: 8px;
             border-radius: 999px;
-            background: #7fdfff;
+            background: #f0f0f0;
           }
 
           .electromap-map-root .route-stop-marker {
@@ -764,19 +848,19 @@ function MapView({
             height: 28px;
             border-radius: 999px;
             border: 1px solid rgba(255, 255, 255, 0.65);
-            color: #041423;
-            font-family: 'JetBrains Mono', monospace;
+            color: #f0f0f0;
+            font-family: 'Space Mono', monospace;
             font-size: 0.74rem;
             font-weight: 700;
             display: grid;
             place-items: center;
-            box-shadow: 0 0 18px rgba(255, 184, 0, 0.35);
-            background: #ffb800;
+            box-shadow: 0 0 14px rgba(255, 255, 255, 0.18);
+            background: #161616;
           }
 
           .electromap-map-root .route-stop-marker-station {
-            background: #00d4ff;
-            box-shadow: 0 0 18px rgba(0, 212, 255, 0.35);
+            border-color: rgba(255, 51, 51, 0.9);
+            box-shadow: 0 0 0 2px #ff3333, 0 0 14px rgba(255, 51, 51, 0.36);
           }
 
           .electromap-map-root .station-map-marker-bounce {

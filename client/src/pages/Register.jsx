@@ -212,8 +212,8 @@ function Register() {
 							className="chip"
 							style={{
 								width: 'fit-content',
-								borderColor: 'rgba(123, 47, 255, 0.4)',
-								background: 'rgba(123, 47, 255, 0.14)',
+								borderColor: 'rgba(255, 51, 51, 0.4)',
+								background: 'rgba(255, 51, 51, 0.14)',
 								color: '#b79dff',
 							}}
 						>
@@ -238,7 +238,7 @@ function Register() {
 								marginTop: '0.75rem',
 								borderRadius: '14px',
 								padding: '0.85rem',
-								borderColor: 'rgba(0, 212, 255, 0.28)',
+								borderColor: 'rgba(255, 255, 255, 0.28)',
 							}}
 						>
 							<small style={{ color: 'var(--text-secondary)' }}>Community Momentum</small>

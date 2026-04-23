@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { io } from 'socket.io-client'
 
+import { isMockModeEnabled } from '../utils/mockMode'
+
 function useSocket() {
+  const mockMode = isMockModeEnabled()
   const socketUrl =
     import.meta.env.VITE_SOCKET_URL ||
     (typeof window !== 'undefined' ? window.location.origin : undefined)
 
   const socket = useMemo(() => {
-    if (!socketUrl) {
+    if (!socketUrl || mockMode) {
       return null
     }
 
@@ -15,7 +18,7 @@ function useSocket() {
       autoConnect: false,
       transports: ['websocket', 'polling'],
     })
-  }, [socketUrl])
+  }, [mockMode, socketUrl])
 
   const [isConnected, setIsConnected] = useState(false)
 

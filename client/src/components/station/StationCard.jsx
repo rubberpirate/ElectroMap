@@ -64,7 +64,7 @@ function StationCard({
       animate={{ opacity: 1, y: 0 }}
       style={{
         width: '100%',
-        borderColor: isActive ? 'rgba(0, 212, 255, 0.52)' : 'var(--border)',
+        borderColor: isActive ? 'rgba(255, 255, 255, 0.52)' : 'var(--border)',
       }}
     >
       <button
@@ -92,7 +92,7 @@ function StationCard({
               height: 156,
               borderRadius: '12px',
               overflow: 'hidden',
-              border: '1px solid rgba(0, 212, 255, 0.18)',
+              border: '1px solid rgba(255, 255, 255, 0.18)',
               position: 'relative',
             }}
           >
@@ -110,7 +110,7 @@ function StationCard({
                   display: 'grid',
                   placeItems: 'center',
                   background:
-                    'linear-gradient(130deg, rgba(0, 212, 255, 0.18), rgba(123, 47, 255, 0.2))',
+                    'linear-gradient(130deg, rgba(255, 255, 255, 0.18), rgba(255, 51, 51, 0.2))',
                   fontFamily: 'Syne, sans-serif',
                   fontSize: '1.45rem',
                   letterSpacing: '0.04em',

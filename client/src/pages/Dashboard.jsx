@@ -362,7 +362,7 @@ function Dashboard() {
 									width: 30,
 									height: 30,
 									borderRadius: '999px',
-									border: '1px solid rgba(0, 212, 255, 0.5)',
+									border: '1px solid rgba(255, 255, 255, 0.5)',
 									background: 'rgba(7, 15, 24, 0.92)',
 									color: 'var(--accent-primary)',
 									display: 'grid',
@@ -399,10 +399,10 @@ function Dashboard() {
 									onClick={() => setActiveTab(item.id)}
 									style={{
 										border: active
-											? '1px solid rgba(0, 212, 255, 0.45)'
+											? '1px solid rgba(255, 255, 255, 0.45)'
 											: '1px solid transparent',
 										background: active
-											? 'rgba(0, 212, 255, 0.12)'
+											? 'rgba(255, 255, 255, 0.12)'
 											: 'transparent',
 										color: active
 											? 'var(--text-primary)'
@@ -428,8 +428,8 @@ function Dashboard() {
 								<button
 									type="button"
 									style={{
-										border: '1px solid rgba(0, 212, 255, 0.35)',
-										background: 'rgba(0, 212, 255, 0.08)',
+										border: '1px solid rgba(255, 255, 255, 0.35)',
+										background: 'rgba(255, 255, 255, 0.08)',
 										color: 'var(--text-primary)',
 										width: '100%',
 										borderRadius: '10px',
@@ -666,7 +666,7 @@ function Dashboard() {
 															width: '100%',
 															minHeight: 40,
 															borderRadius: '10px',
-															border: '1px solid rgba(0, 212, 255, 0.28)',
+															border: '1px solid rgba(255, 255, 255, 0.28)',
 															background: 'rgba(10, 22, 40, 0.72)',
 															paddingInline: '0.6rem',
 														}}
@@ -695,7 +695,7 @@ function Dashboard() {
 															marginTop: '0.35rem',
 															width: '100%',
 															borderRadius: '10px',
-															border: '1px solid rgba(0, 212, 255, 0.28)',
+															border: '1px solid rgba(255, 255, 255, 0.28)',
 															background: 'rgba(10, 22, 40, 0.72)',
 															padding: '0.55rem',
 															resize: 'vertical',
@@ -727,10 +727,10 @@ function Dashboard() {
 																	style={{
 																		borderRadius: '999px',
 																		border: active
-																			? '1px solid rgba(0, 212, 255, 0.6)'
-																			: '1px solid rgba(0, 212, 255, 0.22)',
+																			? '1px solid rgba(255, 255, 255, 0.6)'
+																			: '1px solid rgba(255, 255, 255, 0.22)',
 																		background: active
-																			? 'rgba(0, 212, 255, 0.14)'
+																			? 'rgba(255, 255, 255, 0.14)'
 																			: 'rgba(10, 22, 40, 0.75)',
 																		color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
 																		fontSize: '0.78rem',
@@ -779,7 +779,7 @@ function Dashboard() {
 								className="glass-card"
 								style={{
 									borderRadius: '12px',
-									borderColor: 'rgba(0, 212, 255, 0.25)',
+									borderColor: 'rgba(255, 255, 255, 0.25)',
 									padding: '0.75rem',
 									display: 'grid',
 									gap: '0.65rem',

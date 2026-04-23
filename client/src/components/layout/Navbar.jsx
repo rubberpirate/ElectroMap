@@ -64,8 +64,8 @@ function Logo() {
           width: 34,
           height: 34,
           borderRadius: '10px',
-          border: '1px solid rgba(0, 212, 255, 0.45)',
-          background: 'linear-gradient(130deg, rgba(0, 212, 255, 0.35), rgba(123, 47, 255, 0.25))',
+          border: '1px solid rgba(255, 255, 255, 0.45)',
+          background: 'linear-gradient(130deg, rgba(255, 255, 255, 0.35), rgba(255, 51, 51, 0.25))',
           display: 'grid',
           placeItems: 'center',
           boxShadow: 'var(--glow-cyan)',
@@ -365,7 +365,7 @@ function MobileDrawer({ isOpen, onClose }) {
                         padding: '0.62rem 0.72rem',
                         borderRadius: '10px',
                         color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        background: isActive ? 'rgba(0, 212, 255, 0.13)' : 'transparent',
+                        background: isActive ? 'rgba(255, 255, 255, 0.13)' : 'transparent',
                       }}
                     >
                       {item.label}
@@ -384,7 +384,7 @@ function MobileDrawer({ isOpen, onClose }) {
                       padding: '0.62rem 0.72rem',
                       borderRadius: '10px',
                       color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      background: isActive ? 'rgba(0, 212, 255, 0.13)' : 'transparent',
+                      background: isActive ? 'rgba(255, 255, 255, 0.13)' : 'transparent',
                     })}
                   >
                     {item.label}

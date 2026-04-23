@@ -3,8 +3,8 @@ import { useEffect, useRef } from 'react'
 import { cn } from '../../utils/cn'
 
 const defaultPalette = [
-  'rgba(0, 212, 255, 0.62)',
-  'rgba(123, 47, 255, 0.58)',
+  'rgba(255, 255, 255, 0.62)',
+  'rgba(255, 51, 51, 0.58)',
   'rgba(120, 220, 255, 0.38)',
 ]
 

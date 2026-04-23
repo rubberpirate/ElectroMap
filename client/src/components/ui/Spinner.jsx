@@ -22,7 +22,7 @@ function Spinner({ size = 'md', className, label = 'Loading' }) {
         borderRadius: '999px',
         border: `${borderWidth}px solid rgba(122, 157, 181, 0.25)`,
         borderTopColor: 'var(--accent-primary)',
-        borderRightColor: 'rgba(123, 47, 255, 0.6)',
+        borderRightColor: 'rgba(255, 51, 51, 0.6)',
         animation: 'spin 0.85s linear infinite',
         display: 'inline-block',
       }}
