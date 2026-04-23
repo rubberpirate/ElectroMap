@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 
+const User = require('../models/User');
 const { errorResponse } = require('../utils/apiResponse');
 
 const getTokenFromRequest = (req) => {
@@ -12,7 +13,7 @@ const getTokenFromRequest = (req) => {
   return authHeader.split(' ')[1];
 };
 
-const decodeToken = (token) => {
+const verifyToken = (token) => {
   if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET is not set');
   }
@@ -20,32 +21,49 @@ const decodeToken = (token) => {
   return jwt.verify(token, process.env.JWT_SECRET);
 };
 
-const protect = (req, res, next) => {
+const attachUserFromToken = async (token) => {
+  const decoded = verifyToken(token);
+  const userId = decoded.userId || decoded.id;
+
+  if (!userId) {
+    throw new Error('Invalid token payload');
+  }
+
+  const user = await User.findById(userId).select('-password');
+  return user;
+};
+
+const protect = async (req, res, next) => {
   try {
     const token = getTokenFromRequest(req);
-
     if (!token) {
       return errorResponse(res, 'Authorization token required', 401);
     }
 
-    const decoded = decodeToken(token);
-    req.user = decoded;
+    const user = await attachUserFromToken(token);
+    if (!user) {
+      return errorResponse(res, 'User not found or token invalid', 401);
+    }
 
+    req.user = user;
     return next();
   } catch (error) {
     return errorResponse(res, 'Unauthorized access', 401, error.message);
   }
 };
 
-const optionalAuth = (req, res, next) => {
+const optionalAuth = async (req, res, next) => {
   try {
     const token = getTokenFromRequest(req);
-
     if (!token) {
       return next();
     }
 
-    req.user = decodeToken(token);
+    const user = await attachUserFromToken(token);
+    if (user) {
+      req.user = user;
+    }
+
     return next();
   } catch (error) {
     return next();

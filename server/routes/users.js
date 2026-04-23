@@ -1,15 +1,16 @@
 const express = require('express');
 
+const {
+	getSavedStations,
+	getUserProfile,
+	getMyReviews,
+} = require('../controllers/userController');
+const { protect } = require('../middleware/auth');
+
 const router = express.Router();
 
-router.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'User routes initialized',
-    data: null,
-    errors: null,
-    timestamp: new Date().toISOString(),
-  });
-});
+router.get('/saved-stations', protect, getSavedStations);
+router.get('/me/reviews', protect, getMyReviews);
+router.get('/profile/:id', protect, getUserProfile);
 
 module.exports = router;

@@ -1,15 +1,14 @@
 const express = require('express');
 
+const {
+  getChargersByStation,
+  updateChargerStatus,
+} = require('../controllers/chargerController');
+const { optionalAuth } = require('../middleware/auth');
+
 const router = express.Router();
 
-router.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Charger routes initialized',
-    data: [],
-    errors: null,
-    timestamp: new Date().toISOString(),
-  });
-});
+router.get('/station/:stationId', getChargersByStation);
+router.put('/:id/status', optionalAuth, updateChargerStatus);
 
 module.exports = router;

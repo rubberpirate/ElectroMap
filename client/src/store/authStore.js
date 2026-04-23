@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 import api from '../services/api'
+import { useStationStore } from './stationStore'
 
 const TOKEN_KEY = 'electromap_token'
 
@@ -25,14 +26,28 @@ const persistToken = (token) => {
   localStorage.removeItem(TOKEN_KEY)
 }
 
+const getErrorMessage = (error) =>
+  error?.response?.data?.message || error?.message || 'Request failed.'
+
+const syncSavedStations = (user) => {
+  const savedStations = Array.isArray(user?.savedStations)
+    ? user.savedStations.map((item) => String(item))
+    : []
+
+  useStationStore.getState().setSavedStations(savedStations)
+}
+
 export const useAuthStore = create((set) => ({
   user: null,
   token: getStoredToken(),
   isAuthenticated: Boolean(getStoredToken()),
   isLoading: false,
+  error: null,
+
+  clearError: () => set({ error: null }),
 
   login: async (payload) => {
-    set({ isLoading: true })
+    set({ isLoading: true, error: null })
 
     try {
       const { data } = await api.post('/auth/login', payload)
@@ -46,17 +61,19 @@ export const useAuthStore = create((set) => ({
         token,
         isAuthenticated: Boolean(token),
         isLoading: false,
+        error: null,
       })
+      syncSavedStations(user)
 
       return { user, token }
     } catch (error) {
-      set({ isLoading: false })
+      set({ isLoading: false, error: getErrorMessage(error) })
       throw error
     }
   },
 
   register: async (payload) => {
-    set({ isLoading: true })
+    set({ isLoading: true, error: null })
 
     try {
       const { data } = await api.post('/auth/register', payload)
@@ -70,21 +87,23 @@ export const useAuthStore = create((set) => ({
         token,
         isAuthenticated: Boolean(token),
         isLoading: false,
+        error: null,
       })
+      syncSavedStations(user)
 
       return { user, token }
     } catch (error) {
-      set({ isLoading: false })
+      set({ isLoading: false, error: getErrorMessage(error) })
       throw error
     }
   },
 
   logout: async () => {
-    set({ isLoading: true })
+    set({ isLoading: true, error: null })
 
     try {
       await api.post('/auth/logout')
-    } catch (error) {
+    } catch {
       // Ignore logout failures because token cleanup is local and stateless.
     }
 
@@ -95,7 +114,9 @@ export const useAuthStore = create((set) => ({
       token: null,
       isAuthenticated: false,
       isLoading: false,
+      error: null,
     })
+    syncSavedStations(null)
   },
 
   checkAuth: async () => {
@@ -107,11 +128,12 @@ export const useAuthStore = create((set) => ({
         token: null,
         isAuthenticated: false,
         isLoading: false,
+        error: null,
       })
       return null
     }
 
-    set({ isLoading: true, token })
+    set({ isLoading: true, token, error: null })
 
     try {
       const { data } = await api.get('/auth/me')
@@ -122,33 +144,46 @@ export const useAuthStore = create((set) => ({
         token,
         isAuthenticated: true,
         isLoading: false,
+        error: null,
       })
+      syncSavedStations(user)
 
       return user
-    } catch (error) {
+    } catch {
       persistToken(null)
       set({
         user: null,
         token: null,
         isAuthenticated: false,
         isLoading: false,
+        error: null,
       })
+      syncSavedStations(null)
       return null
     }
   },
 
   updateProfile: async (payload) => {
-    set({ isLoading: true })
+    set({ isLoading: true, error: null })
 
     try {
-      const { data } = await api.put('/auth/update-profile', payload)
+      const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData
+
+      const { data } = await api.put('/auth/update-profile', payload, {
+        headers: isFormData
+          ? {
+              'Content-Type': 'multipart/form-data',
+            }
+          : undefined,
+      })
       const user = data?.data?.user || data?.data || data?.user || null
 
-      set({ user, isLoading: false })
+      set({ user, isLoading: false, error: null })
+      syncSavedStations(user)
 
       return user
     } catch (error) {
-      set({ isLoading: false })
+      set({ isLoading: false, error: getErrorMessage(error) })
       throw error
     }
   },
