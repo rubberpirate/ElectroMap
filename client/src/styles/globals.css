@@ -134,6 +134,7 @@ body,
   min-height: 100%;
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
 }
 
 html {
@@ -182,6 +183,7 @@ textarea,
 select {
   font: inherit;
   color: inherit;
+  touch-action: manipulation;
 }
 
 button {

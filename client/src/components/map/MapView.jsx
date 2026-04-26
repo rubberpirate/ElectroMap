@@ -91,6 +91,9 @@ function MapView({
   const hasCenteredOnUserRef = useRef(false)
   const hasAutoFitStationsRef = useRef(false)
   const initialUserLocationRef = useRef(userLocation)
+  const initialMapCenterRef = useRef(mapCenter)
+  const initialMapZoomRef = useRef(mapZoom)
+  const initialMapStylePreferenceRef = useRef(mapStyle)
 
   const onStationSelectRef = useRef(onStationSelect)
   const onStationHoverRef = useRef(onStationHover)
@@ -507,10 +510,10 @@ function MapView({
       return undefined
     }
 
-    const initialStyle = getMapTilerStyle(mapStyle)
+    const initialStyle = getMapTilerStyle(initialMapStylePreferenceRef.current)
     mapStyleRef.current = initialStyle
-    const centerLng = Number(mapCenter?.[0])
-    const centerLat = Number(mapCenter?.[1])
+    const centerLng = Number(initialMapCenterRef.current?.[0])
+    const centerLat = Number(initialMapCenterRef.current?.[1])
     const hasMapCenter = Number.isFinite(centerLng) && Number.isFinite(centerLat)
 
     const initialCenter = initialUserLocationRef.current
@@ -526,7 +529,7 @@ function MapView({
       container: mapContainerRef.current,
       style: mapStyleRef.current,
       center: initialCenter,
-      zoom: initialUserLocationRef.current ? 11.8 : Number(mapZoom) || 5,
+      zoom: initialUserLocationRef.current ? 11.8 : Number(initialMapZoomRef.current) || 5,
       minZoom: 3,
       projection: 'mercator',
       antialias: true,
@@ -625,9 +628,6 @@ function MapView({
     cleanupClusterMarkers,
     cleanupRoutePlannerMarkers,
     ensureUserMarker,
-    mapCenter,
-    mapStyle,
-    mapZoom,
     maptilerKey,
   ])
 

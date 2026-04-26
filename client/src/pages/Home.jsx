@@ -20,8 +20,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
 import {
-	Dither,
 	GradientText,
+	ShapeGrid,
 	SplitText,
 	StarBorder,
 	TiltedCard,
@@ -402,23 +402,22 @@ function Home() {
 			>
 				<div
 					aria-hidden="true"
+					className="home-hero-shapegrid"
 					style={{
 						position: 'absolute',
 						inset: 0,
-						opacity: 0.6,
+						opacity: 0.45,
 						pointerEvents: 'none',
 					}}
 				>
-					<Dither
-						waveColor={[0.45, 0.45, 0.45]}
-						disableAnimation={false}
-						enableMouseInteraction={false}
-						mouseRadius={0.35}
-						colorNum={4}
-						waveAmplitude={0.28}
-						waveFrequency={2.8}
-						waveSpeed={0.04}
-						pixelSize={2}
+					<ShapeGrid
+						speed={0.5}
+						squareSize={42}
+						direction="diagonal"
+						borderColor="rgba(240, 240, 240, 0.14)"
+						hoverFillColor="rgba(255, 51, 51, 0.2)"
+						shape="square"
+						hoverTrailAmount={0}
 					/>
 				</div>
 				<div className="scanline-overlay" aria-hidden="true" />
@@ -558,24 +557,20 @@ function Home() {
 						<GradientText>Stations Near You</GradientText>
 					</motion.h2>
 
-					<div
-						className="home-map-grid"
-						style={{
-							display: 'grid',
-							gap: '1rem',
-							gridTemplateColumns: 'minmax(0, 1.45fr) minmax(0, 0.9fr)',
-						}}
-					>
+					<div className="home-map-grid">
 						<MiniMapPreview />
 
-						<div style={{ display: 'grid', gap: '0.8rem', alignContent: 'start' }}>
+						<div className="home-map-metrics">
 							{statsLoading ? (
 								Array.from({ length: 3 }).map((_, index) => (
-									<div key={`loading-${index}`} className="glass-card skeleton" style={{ height: 96 }} />
+									<div
+										key={`loading-${index}`}
+										className="glass-card skeleton home-metric-card"
+									/>
 								))
 							) : (
 								<>
-									<Card className="glass-card" hover={false}>
+									<Card className="glass-card home-metric-card" hover={false}>
 										<div style={{ padding: '1rem' }}>
 											<p style={{ color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Active Stations</p>
 											<p style={{ fontSize: '1.6rem' }} className="mono-data glow-text">
@@ -583,7 +578,7 @@ function Home() {
 											</p>
 										</div>
 									</Card>
-									<Card className="glass-card" hover={false}>
+									<Card className="glass-card home-metric-card" hover={false}>
 										<div style={{ padding: '1rem' }}>
 											<p style={{ color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
 												Available Chargers
@@ -593,7 +588,7 @@ function Home() {
 											</p>
 										</div>
 									</Card>
-									<Card className="glass-card" hover={false}>
+									<Card className="glass-card home-metric-card" hover={false}>
 										<div style={{ padding: '1rem' }}>
 											<p style={{ color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Avg Wait Time</p>
 											<p style={{ fontSize: '1.6rem' }} className="mono-data glow-text">
@@ -795,6 +790,35 @@ function Home() {
 
 			<style>
 				{`
+					.home-hero-shapegrid {
+						mask-image: radial-gradient(circle at center, black 45%, transparent 100%);
+						-webkit-mask-image: radial-gradient(circle at center, black 45%, transparent 100%);
+					}
+
+					.home-map-grid {
+						display: grid;
+						grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.72fr);
+						gap: 1rem;
+						align-items: stretch;
+					}
+
+					.home-map-grid .map-vignette {
+						min-height: 360px !important;
+					}
+
+					.home-map-metrics {
+						display: grid;
+						grid-template-rows: repeat(3, minmax(0, 1fr));
+						gap: 0.8rem;
+						min-height: 360px;
+					}
+
+					.home-metric-card {
+						min-height: 100px;
+						display: grid;
+						align-items: center;
+					}
+
 					main h1 {
 						font-size: clamp(2.5rem, 9vw, 6rem);
 						line-height: 0.95;
@@ -802,10 +826,26 @@ function Home() {
 						max-width: 11ch;
 					}
 
+					@media (max-width: 1180px) {
+						.home-map-grid {
+							grid-template-columns: minmax(0, 1fr) minmax(220px, 0.75fr);
+						}
+					}
+
 					@media (max-width: 960px) {
 						.home-map-grid,
 						.home-why-grid {
 							grid-template-columns: 1fr !important;
+						}
+
+						.home-map-grid .map-vignette {
+							min-height: 300px !important;
+						}
+
+						.home-map-metrics {
+							min-height: 0;
+							grid-template-rows: none;
+							grid-auto-rows: minmax(88px, auto);
 						}
 					}
 				`}

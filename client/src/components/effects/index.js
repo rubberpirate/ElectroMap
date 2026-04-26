@@ -1,5 +1,6 @@
 export { default as GradientText } from './GradientText'
 export { default as Dither } from './Dither'
+export { default as ShapeGrid } from './ShapeGrid'
 export { default as Particles } from './Particles'
 export { default as SplitText } from './SplitText'
 export { default as StarBorder } from './StarBorder'

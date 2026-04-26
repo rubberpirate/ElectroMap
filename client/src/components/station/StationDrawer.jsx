@@ -770,26 +770,20 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                     </div>
                   </div>
 
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                      gap: '0.7rem',
-                    }}
-                  >
-                    <div className="glass-card" style={{ borderRadius: '12px', padding: '0.7rem' }}>
+                  <div className="station-drawer-metrics">
+                    <div className="glass-card station-drawer-metric-card">
                       <small style={{ color: 'var(--text-secondary)' }}>Available</small>
                       <div className="mono-data status-available" style={{ fontSize: '1.3rem', marginTop: '0.2rem' }}>
                         {Number(station.availableChargers) || 0}
                       </div>
                     </div>
-                    <div className="glass-card" style={{ borderRadius: '12px', padding: '0.7rem' }}>
+                    <div className="glass-card station-drawer-metric-card">
                       <small style={{ color: 'var(--text-secondary)' }}>Total chargers</small>
                       <div className="mono-data" style={{ fontSize: '1.3rem', marginTop: '0.2rem' }}>
                         {Number(station.totalChargers) || 0}
                       </div>
                     </div>
-                    <div className="glass-card" style={{ borderRadius: '12px', padding: '0.7rem' }}>
+                    <div className="glass-card station-drawer-metric-card">
                       <small style={{ color: 'var(--text-secondary)' }}>Rating</small>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.2rem' }}>
                         <Star size={16} color="var(--accent-amber)" fill="var(--accent-amber)" />
@@ -798,7 +792,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                         </span>
                       </div>
                     </div>
-                    <div className="glass-card" style={{ borderRadius: '12px', padding: '0.7rem' }}>
+                    <div className="glass-card station-drawer-metric-card">
                       <small style={{ color: 'var(--text-secondary)' }}>Distance</small>
                       <div className="mono-data" style={{ fontSize: '1.2rem', marginTop: '0.2rem' }}>
                         {Number.isFinite(distanceKm) ? `${distanceKm.toFixed(1)} km` : '--'}
@@ -806,44 +800,38 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                     </div>
                   </div>
 
-                  <div className="glass-card" style={{ borderRadius: '12px', padding: '0.8rem' }}>
+                  <div className="glass-card station-drawer-section-card">
                     <h4 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Chargers</h4>
                     <div style={{ display: 'grid', gap: '0.55rem' }}>
-                      {(station.chargers || []).map((charger, index) => (
-                        <div
-                          key={charger._id || `${station._id}-charger-${index}`}
-                          style={{
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                            borderRadius: '10px',
-                            padding: '0.55rem',
-                            display: 'grid',
-                            gap: '0.32rem',
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', flexWrap: 'wrap' }}>
-                            <strong style={{ fontSize: '0.95rem' }}>
-                              {charger.chargerType} • {charger.connectorType}
-                            </strong>
-                            <Badge kind="status" value={charger.status}>
-                              {charger.status}
-                            </Badge>
+                      {(station.chargers || []).length ? (
+                        (station.chargers || []).map((charger, index) => (
+                          <div
+                            key={charger._id || `${station._id}-charger-${index}`}
+                            className="station-drawer-charger-row"
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', flexWrap: 'wrap' }}>
+                              <strong style={{ fontSize: '0.95rem' }}>
+                                {charger.chargerType} • {charger.connectorType}
+                              </strong>
+                              <Badge kind="status" value={charger.status}>
+                                {charger.status}
+                              </Badge>
+                            </div>
+                            <small style={{ color: 'var(--text-secondary)' }}>
+                              {Number(charger.powerOutput) || 0} kW
+                            </small>
                           </div>
-                          <small style={{ color: 'var(--text-secondary)' }}>
-                            {Number(charger.powerOutput) || 0} kW
-                          </small>
-                        </div>
-                      ))}
+                        ))
+                      ) : (
+                        <small style={{ color: 'var(--text-secondary)' }}>
+                          Charger details are not available for this station yet.
+                        </small>
+                      )}
                     </div>
                   </div>
 
-                  <div
-                    style={{
-                      display: 'grid',
-                      gap: '0.7rem',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                    }}
-                  >
-                    <div className="glass-card" style={{ borderRadius: '12px', padding: '0.8rem' }}>
+                  <div className="station-drawer-split-cards">
+                    <div className="glass-card station-drawer-section-card">
                       <h4 style={{ fontSize: '1rem', marginBottom: '0.45rem' }}>Pricing</h4>
                       <p style={{ color: 'var(--text-secondary)' }}>Per kWh</p>
                       <strong>{toCurrency(station.pricing?.perKwh, station.pricing?.currency)}</strong>
@@ -853,7 +841,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                       <strong>{toCurrency(station.pricing?.sessionFee, station.pricing?.currency)}</strong>
                     </div>
 
-                    <div className="glass-card" style={{ borderRadius: '12px', padding: '0.8rem' }}>
+                    <div className="glass-card station-drawer-section-card">
                       <h4 style={{ fontSize: '1rem', marginBottom: '0.45rem' }}>Operating Hours</h4>
                       <p
                         style={{
@@ -876,7 +864,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                     </div>
                   </div>
 
-                  <div className="glass-card" style={{ borderRadius: '12px', padding: '0.8rem' }}>
+                  <div className="glass-card station-drawer-section-card">
                     <h4 style={{ fontSize: '1rem', marginBottom: '0.45rem' }}>Amenities</h4>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
                       {(station.amenities || []).length ? (
@@ -904,18 +892,28 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.55rem' }}>
-                    <Button leftIcon={<Navigation size={15} />} onClick={handleNavigateToStation}>
+                  <div className="station-drawer-actions">
+                    <Button
+                      className="station-drawer-action-btn"
+                      leftIcon={<Navigation size={15} />}
+                      onClick={handleNavigateToStation}
+                    >
                       Navigate
                     </Button>
                     <Button
+                      className="station-drawer-action-btn"
                       variant={station?.isSaved ? 'secondary' : 'ghost'}
                       leftIcon={<Heart size={15} />}
                       onClick={handleToggleSavedStation}
                     >
                       {station?.isSaved ? 'Saved' : 'Save Station'}
                     </Button>
-                    <Button variant="ghost" leftIcon={<Share2 size={15} />} onClick={handleShareStation}>
+                    <Button
+                      className="station-drawer-action-btn"
+                      variant="ghost"
+                      leftIcon={<Share2 size={15} />}
+                      onClick={handleShareStation}
+                    >
                       Share
                     </Button>
                   </div>
@@ -1151,6 +1149,63 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                   border-radius: 16px 16px 0 0 !important;
                   border-left: none !important;
                   border-top: 1px solid var(--border);
+                }
+              }
+
+              .station-drawer-metrics {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 0.7rem;
+              }
+
+              .station-drawer-metric-card {
+                border-radius: 12px;
+                padding: 0.72rem;
+                min-height: 82px;
+                display: grid;
+                align-content: space-between;
+              }
+
+              .station-drawer-section-card {
+                border-radius: 12px;
+                padding: 0.8rem;
+              }
+
+              .station-drawer-charger-row {
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 10px;
+                padding: 0.55rem;
+                display: grid;
+                gap: 0.32rem;
+              }
+
+              .station-drawer-split-cards {
+                display: grid;
+                gap: 0.7rem;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+              }
+
+              .station-drawer-actions {
+                display: grid;
+                gap: 0.55rem;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+              }
+
+              .station-drawer-action-btn {
+                width: 100%;
+              }
+
+              @media (max-width: 680px) {
+                .station-drawer-metrics {
+                  grid-template-columns: 1fr;
+                }
+
+                .station-drawer-split-cards {
+                  grid-template-columns: 1fr;
+                }
+
+                .station-drawer-actions {
+                  grid-template-columns: 1fr;
                 }
               }
             `}
