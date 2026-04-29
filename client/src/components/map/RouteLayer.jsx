@@ -53,7 +53,7 @@ const drawRouteVisuals = (map, routeGeoJSON) => {
           'line-cap': 'round',
         },
         paint: {
-          'line-color': '#f0f0f0',
+          'line-color': '#00e8cc',
           'line-width': 10,
           'line-opacity': 0.25,
           'line-blur': 1,
@@ -71,7 +71,7 @@ const drawRouteVisuals = (map, routeGeoJSON) => {
           'line-cap': 'round',
         },
         paint: {
-          'line-color': '#f0f0f0',
+          'line-color': '#e6f2ef',
           'line-width': 4,
           'line-opacity': 0.95,
         },

@@ -4,21 +4,21 @@ const getStationMarkerTone = (station) => {
 
   if (total <= 0 || station?.status === 'offline') {
     return {
-      fill: '#9a9a9a',
-      glow: '0 0 0 1px rgba(154, 154, 154, 0.35)',
+      fill: '#588197',
+      glow: '0 0 0 1px rgba(88, 129, 151, 0.38)',
     }
   }
 
   if (available > 0) {
     return {
-      fill: '#f0f0f0',
-      glow: '0 0 0 1px rgba(240, 240, 240, 0.45), 0 0 10px rgba(255, 255, 255, 0.12)',
+      fill: '#00e8cc',
+      glow: '0 0 0 1px rgba(0, 232, 204, 0.45), 0 0 18px rgba(0, 232, 204, 0.32)',
     }
   }
 
   return {
-    fill: '#ff3333',
-    glow: '0 0 0 2px #ff3333, 0 0 12px rgba(255, 51, 51, 0.42)',
+    fill: '#fd7a01',
+    glow: '0 0 0 2px rgba(253, 122, 1, 0.52), 0 0 16px rgba(253, 122, 1, 0.38)',
   }
 }
 
@@ -44,10 +44,10 @@ const updateStationTooltip = ({ markerElement, station }) => {
       left: '50%',
       bottom: 'calc(100% + 10px)',
       transform: 'translateX(-50%)',
-      borderRadius: '2px',
-      border: '1px solid #2a2a2a',
-      background: 'rgba(13, 13, 13, 0.95)',
-      color: '#f0f0f0',
+      borderRadius: '10px',
+      border: '1px solid rgba(0, 232, 204, 0.18)',
+      background: 'rgba(15, 30, 48, 0.96)',
+      color: '#e6f2ef',
       fontSize: '0.66rem',
       lineHeight: '1',
       whiteSpace: 'nowrap',
@@ -91,22 +91,38 @@ export const createStationMarkerElement = ({ station }) => {
     width: '32px',
     height: '32px',
     borderRadius: '999px',
-    border: '1px solid rgba(240, 240, 240, 0.8)',
-    background: 'rgba(26, 26, 26, 0.96)',
-    color: '#f0f0f0',
+    border: '1px solid rgba(230, 242, 239, 0.78)',
+    background: 'rgba(15, 30, 48, 0.96)',
+    color: '#00e8cc',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     boxShadow: '0 0 0 1px rgba(240, 240, 240, 0.2)',
     cursor: 'pointer',
-    transition: 'transform 140ms ease, box-shadow 180ms ease, color 180ms ease',
+    transition: 'box-shadow 180ms ease, color 180ms ease',
     position: 'relative',
   })
 
   marker.innerHTML = `
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">${lightningPath}</svg>
+    <span class="station-marker-core">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">${lightningPath}</svg>
+    </span>
     <span class="station-marker-capacity">${available}/${total || 0}</span>
   `
+
+  const coreElement = marker.querySelector('.station-marker-core')
+  if (coreElement) {
+    Object.assign(coreElement.style, {
+      width: '100%',
+      height: '100%',
+      borderRadius: 'inherit',
+      display: 'grid',
+      placeItems: 'center',
+      transition: 'transform 140ms ease',
+      pointerEvents: 'none',
+      transformOrigin: 'center',
+    })
+  }
 
   const capacityElement = marker.querySelector('.station-marker-capacity')
   if (capacityElement) {
@@ -118,7 +134,7 @@ export const createStationMarkerElement = ({ station }) => {
       color: '#8c8c8c',
       fontSize: '0.58rem',
       letterSpacing: '0.08em',
-      fontFamily: 'Space Mono, monospace',
+      fontFamily: 'JetBrains Mono, monospace',
       fontWeight: '500',
       pointerEvents: 'none',
       whiteSpace: 'nowrap',
@@ -185,27 +201,42 @@ export const createClusterMarkerElement = ({ count }) => {
     borderRadius: '999px',
     border: 'none',
     background: 'transparent',
-    color: 'rgba(240, 240, 240, 0.75)',
-    fontFamily: 'Space Mono, monospace',
+    color: '#e6f2ef',
+    fontFamily: 'JetBrains Mono, monospace',
     fontWeight: '500',
     fontSize: '0.84rem',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    textShadow: '0 0 10px rgba(240, 240, 240, 0.2)',
+    textShadow: '0 0 12px rgba(0, 232, 204, 0.28)',
     cursor: 'pointer',
     transition: 'transform 140ms ease, color 180ms ease',
   })
 
-  marker.textContent = String(count)
+  marker.innerHTML = `<span class="cluster-marker-core">${count}</span>`
+  const coreElement = marker.querySelector('.cluster-marker-core')
+  if (coreElement) {
+    Object.assign(coreElement.style, {
+      display: 'grid',
+      placeItems: 'center',
+      minWidth: '26px',
+      height: '26px',
+      transition: 'transform 140ms ease',
+      pointerEvents: 'none',
+    })
+  }
 
   marker.onmouseenter = () => {
-    marker.style.transform = 'scale(1.06)'
+    if (coreElement) {
+      coreElement.style.transform = 'scale(1.06)'
+    }
     marker.style.color = '#ffffff'
   }
 
   marker.onmouseleave = () => {
-    marker.style.transform = 'scale(1)'
+    if (coreElement) {
+      coreElement.style.transform = 'scale(1)'
+    }
     marker.style.color = 'rgba(240, 240, 240, 0.75)'
   }
 
@@ -218,7 +249,10 @@ export const applyMarkerHighlightState = ({ markerElement, isSelected, isHovered
   }
 
   const scale = isHovered ? 1.16 : isSelected ? 1.1 : 1
-  markerElement.style.transform = `scale(${scale})`
+  const coreElement = markerElement.querySelector('.station-marker-core')
+  if (coreElement) {
+    coreElement.style.transform = `scale(${scale})`
+  }
   markerElement.style.zIndex = isHovered || isSelected ? '4' : '1'
 }
 

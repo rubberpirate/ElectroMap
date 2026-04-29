@@ -7,8 +7,9 @@ import { useSearchParams } from 'react-router-dom'
 import { Navbar, PageWrapper } from '../components/layout'
 import MapSidebar from '../components/map/MapSidebar'
 import MapView from '../components/map/MapView'
+import RoutePlannerPanel from '../components/map/RoutePlannerPanel'
 import StationDrawer from '../components/station/StationDrawer'
-import { getMockStationById } from '../data/mockStations'
+import { getMockStationById, getMockStations } from '../data/mockStations'
 import useAuth from '../hooks/useAuth'
 import useGeolocation from '../hooks/useGeolocation'
 import useSocket from '../hooks/useSocket'
@@ -24,6 +25,7 @@ const MOCK_FALLBACK_LOCATION = {
 	lat: 16.5062,
 	lng: 80.648,
 }
+const LOCATE_RADIUS_KM = 20
 
 const getStationCoordinates = (station) => {
 	const coordinates = station?.location?.coordinates
@@ -48,6 +50,14 @@ const getStationCoordinates = (station) => {
 }
 
 const getInitialViewport = (userLocation, mapCenter) => {
+	if (!userLocation && isMockModeEnabled()) {
+		return {
+			lat: MOCK_FALLBACK_LOCATION.lat,
+			lng: MOCK_FALLBACK_LOCATION.lng,
+			radiusKm: LOCATE_RADIUS_KM,
+		}
+	}
+
 	const centerLng = Number(userLocation?.lng ?? mapCenter?.[0])
 	const centerLat = Number(userLocation?.lat ?? mapCenter?.[1])
 
@@ -55,15 +65,81 @@ const getInitialViewport = (userLocation, mapCenter) => {
 		return {
 			lat: centerLat,
 			lng: centerLng,
-			radiusKm: 10,
+			radiusKm: LOCATE_RADIUS_KM,
 		}
 	}
 
 	return {
 		lat: isMockModeEnabled() ? MOCK_FALLBACK_LOCATION.lat : INDIA_CENTER[1],
 		lng: isMockModeEnabled() ? MOCK_FALLBACK_LOCATION.lng : INDIA_CENTER[0],
-		radiusKm: 10,
+		radiusKm: LOCATE_RADIUS_KM,
 	}
+}
+
+const coordinateDistanceKm = (from, to) => {
+	const [fromLng, fromLat] = from || []
+	const [toLng, toLat] = to || []
+
+	if (![fromLng, fromLat, toLng, toLat].every((value) => Number.isFinite(Number(value)))) {
+		return Infinity
+	}
+
+	const earthRadiusKm = 6371
+	const toRadians = (value) => (Number(value) * Math.PI) / 180
+	const dLat = toRadians(toLat - fromLat)
+	const dLng = toRadians(toLng - fromLng)
+	const a =
+		Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+		Math.cos(toRadians(fromLat)) *
+			Math.cos(toRadians(toLat)) *
+			Math.sin(dLng / 2) *
+			Math.sin(dLng / 2)
+
+	return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+const getRouteDistanceAtPoint = (coordinates, targetKm) => {
+	if (!Array.isArray(coordinates) || coordinates.length === 0) {
+		return null
+	}
+
+	let travelled = 0
+
+	for (let index = 1; index < coordinates.length; index += 1) {
+		const previous = coordinates[index - 1]
+		const current = coordinates[index]
+		const segmentKm = coordinateDistanceKm(previous, current)
+
+		if (!Number.isFinite(segmentKm)) {
+			continue
+		}
+
+		if (travelled + segmentKm >= targetKm) {
+			const ratio = segmentKm <= 0 ? 0 : (targetKm - travelled) / segmentKm
+			return [
+				Number(previous[0]) + (Number(current[0]) - Number(previous[0])) * ratio,
+				Number(previous[1]) + (Number(current[1]) - Number(previous[1])) * ratio,
+			]
+		}
+
+		travelled += segmentKm
+	}
+
+	return coordinates[coordinates.length - 1]
+}
+
+const dedupeStationsById = (items) => {
+	const seen = new Set()
+
+	return (items || []).filter((station) => {
+		const id = String(station?._id || '')
+		if (!id || seen.has(id)) {
+			return false
+		}
+
+		seen.add(id)
+		return true
+	})
 }
 
 function MapPage() {
@@ -102,7 +178,10 @@ function MapPage() {
 	)
 	const [routeGeoJSON, setRouteGeoJSON] = useState(null)
 	const [routeSummary, setRouteSummary] = useState(null)
+	const [routePlanSummary, setRoutePlanSummary] = useState(null)
+	const [routePlannerStops, setRoutePlannerStops] = useState([])
 	const [isRouting, setIsRouting] = useState(false)
+	const [isPlanningTrip, setIsPlanningTrip] = useState(false)
 	const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 	const [manualLocationLabel, setManualLocationLabel] = useState(() =>
 		isMockModeEnabled() ? 'Vijayawada (Demo)' : '',
@@ -118,6 +197,44 @@ function MapPage() {
 	useEffect(() => {
 		requestLocation()
 	}, [requestLocation])
+
+	useEffect(() => {
+		if (!userLocation && isMockModeEnabled()) {
+			setMapCenter([MOCK_FALLBACK_LOCATION.lng, MOCK_FALLBACK_LOCATION.lat])
+			setZoom(12)
+		}
+	}, [setMapCenter, setZoom, userLocation])
+
+	useEffect(() => {
+		if (!userLocation) {
+			return
+		}
+
+		const nextLat = Number(userLocation.lat)
+		const nextLng = Number(userLocation.lng)
+
+		if (!Number.isFinite(nextLat) || !Number.isFinite(nextLng)) {
+			return
+		}
+
+		setFilters({ maxDistance: LOCATE_RADIUS_KM, sortBy: 'nearest' })
+		setMapCenter([nextLng, nextLat])
+		setZoom(12)
+
+		const timer = window.setTimeout(() => {
+			setManualLocationLabel(`${nextLat.toFixed(3)}, ${nextLng.toFixed(3)}`)
+			setViewportQuery((current) => ({
+				...current,
+				lat: nextLat,
+				lng: nextLng,
+				radiusKm: LOCATE_RADIUS_KM,
+			}))
+		}, 0)
+
+		return () => {
+			window.clearTimeout(timer)
+		}
+	}, [setFilters, setMapCenter, setZoom, userLocation])
 
 	useEffect(() => {
 		if (typeof window === 'undefined') {
@@ -187,6 +304,8 @@ function MapPage() {
 	const clearRoute = useCallback(() => {
 		setRouteGeoJSON(null)
 		setRouteSummary(null)
+		setRoutePlanSummary(null)
+		setRoutePlannerStops([])
 	}, [])
 
 	const handleNavigate = useCallback(
@@ -252,6 +371,169 @@ function MapPage() {
 			}
 		},
 		[clearRoute, userLocation],
+	)
+
+	const handlePlanTrip = useCallback(
+		async ({ start, end, batteryRangeKm }) => {
+			const startCoordinates = start?.coordinates
+			const endCoordinates = end?.coordinates
+			const rangeKm = Number(batteryRangeKm)
+
+			if (!Array.isArray(startCoordinates) || !Array.isArray(endCoordinates)) {
+				throw new Error('Select a valid start and destination.')
+			}
+
+			if (!Number.isFinite(rangeKm) || rangeKm <= 0) {
+				throw new Error('Enter a valid single-charge range.')
+			}
+
+			setIsPlanningTrip(true)
+
+			try {
+				const routeUrl = buildOsrmRouteUrl({
+					start: startCoordinates,
+					end: endCoordinates,
+				})
+
+				if (!routeUrl) {
+					throw new Error('Invalid trip coordinates.')
+				}
+
+				const response = await fetch(routeUrl)
+				if (!response.ok) {
+					throw new Error('Could not calculate that trip route.')
+				}
+
+				const payload = await response.json()
+				const bestRoute = payload?.routes?.[0]
+				const routeCoordinates = bestRoute?.geometry?.coordinates || []
+
+				if (!bestRoute?.geometry || !routeCoordinates.length) {
+					throw new Error('No route is available for this trip.')
+				}
+
+				const distanceKm = (Number(bestRoute.distance) || 0) / 1000
+				const durationMin = (Number(bestRoute.duration) || 0) / 60
+				const usableRangeKm = Math.max(1, rangeKm * 0.82)
+				const requiredStops = Math.max(0, Math.ceil(distanceKm / usableRangeKm) - 1)
+				const targetPoints = Array.from({ length: requiredStops }, (_, index) =>
+					getRouteDistanceAtPoint(routeCoordinates, usableRangeKm * (index + 1)),
+				).filter(Boolean)
+
+				let candidateStations = dedupeStationsById([
+					...stations,
+					...(isMockModeEnabled() ? getMockStations() : []),
+				])
+
+				if (!isMockModeEnabled() && targetPoints.length) {
+					const nearbyResponses = await Promise.allSettled(
+						targetPoints.map(([lng, lat]) =>
+							api.get('/stations/nearby', {
+								params: {
+									lat,
+									lng,
+									radius: Math.max(25, Math.min(rangeKm * 0.35, 60)),
+									page: 1,
+									limit: 12,
+								},
+							}),
+						),
+					)
+
+					const routeStations = nearbyResponses.flatMap((result) =>
+						result.status === 'fulfilled' ? result.value?.data?.data?.stations || [] : [],
+					)
+					candidateStations = dedupeStationsById([...candidateStations, ...routeStations])
+				}
+
+				const usedStationIds = new Set()
+				const stationStops = targetPoints
+					.map((point) => {
+						const rankedStations = candidateStations
+							.map((station) => {
+								const coordinates = getStationCoordinates(station)
+								return {
+									station,
+									coordinates,
+									distanceKm: coordinates ? coordinateDistanceKm(point, coordinates) : Infinity,
+								}
+							})
+							.filter(
+								(item) =>
+									item.coordinates &&
+									Number.isFinite(item.distanceKm) &&
+									item.distanceKm <= Math.max(35, Math.min(rangeKm * 0.45, 75)) &&
+									!usedStationIds.has(String(item.station?._id)),
+							)
+							.sort((first, second) => first.distanceKm - second.distanceKm)
+
+						const bestStation = rankedStations[0]
+						if (!bestStation) {
+							return null
+						}
+
+						usedStationIds.add(String(bestStation.station._id))
+						return {
+							kind: 'station',
+							station: bestStation.station,
+							stationName: bestStation.station?.stationName || 'Charging stop',
+							coordinates: bestStation.coordinates,
+						}
+					})
+					.filter(Boolean)
+
+				setRouteGeoJSON({
+					type: 'Feature',
+					properties: {
+						routeType: 'trip-planner',
+					},
+					geometry: bestRoute.geometry,
+				})
+
+				setRouteSummary({
+					stationName: `${start.placeName || 'Start'} to ${end.placeName || 'Destination'}`,
+					distanceKm,
+					durationMin,
+					stepsCount: bestRoute?.legs?.[0]?.steps?.length || 0,
+				})
+
+				setRoutePlanSummary({
+					title: 'Trip plan ready',
+					distanceKm,
+					durationMin,
+					requiredStops,
+					foundStations: stationStops.length,
+					estimatedChargingMin: stationStops.length * 28,
+				})
+
+				setRoutePlannerStops([
+					{
+						kind: 'start',
+						stationName: start.placeName || 'Start',
+						coordinates: startCoordinates,
+					},
+					...stationStops,
+					{
+						kind: 'destination',
+						stationName: end.placeName || 'Destination',
+						coordinates: endCoordinates,
+					},
+				])
+
+				const [startLng, startLat] = startCoordinates
+				setMapCenter([Number(startLng), Number(startLat)])
+				setZoom(8)
+
+				toast.success(
+					stationStops.length
+						? `Trip planned with ${stationStops.length} charging stop${stationStops.length === 1 ? '' : 's'}.`
+						: 'Trip planned. No charging stop needed for this range.',
+				)
+			} finally {
+				setIsPlanningTrip(false)
+			}
+		},
+		[setMapCenter, setZoom, stations],
 	)
 
 	const handleViewportSettled = useCallback(
@@ -362,17 +644,19 @@ function MapPage() {
 			setUserLocation({ lat: nextLat, lng: nextLng })
 			setMapCenter([nextLng, nextLat])
 			setZoom(12)
+			setFilters({ maxDistance: LOCATE_RADIUS_KM, sortBy: 'nearest' })
 			setViewportQuery((current) => ({
 				...current,
 				lat: nextLat,
 				lng: nextLng,
+				radiusKm: LOCATE_RADIUS_KM,
 			}))
 			setManualLocationLabel(selection?.placeName || `${nextLat.toFixed(3)}, ${nextLng.toFixed(3)}`)
 			toast.success(
 				`Showing stations near ${selection?.placeName || 'your selected location'}.`,
 			)
 		},
-		[setMapCenter, setUserLocation, setZoom],
+		[setFilters, setMapCenter, setUserLocation, setZoom],
 	)
 
 	const handleStationHover = useCallback(
@@ -602,9 +886,8 @@ function MapPage() {
 
 			<section
 				style={{
-					minHeight: '100vh',
-					paddingTop: '4.25rem',
-					paddingBottom: '0.5rem',
+					minHeight: '100svh',
+					padding: 0,
 				}}
 			>
 				<div className="map-layout-shell">
@@ -641,13 +924,38 @@ function MapPage() {
 							mapZoom={zoom}
 							mapStyle="dark"
 							routeGeoJSON={routeGeoJSON}
-							routePlannerStops={[]}
+							routePlannerStops={routePlannerStops}
 							onStationSelect={handleStationSelect}
 							onStationHover={handleStationHover}
 							onViewportSettled={handleViewportSettled}
 							onVisibleStationsChange={handleVisibleStationsChange}
 							onUserLocationChange={handleUserLocationChange}
 						/>
+
+						<div className="map-top-pill glass-card">
+							<span className="pulse-dot" aria-hidden="true" />
+							<span>{manualLocationLabel || 'Searching near you'}</span>
+							{user?.role === 'admin' ? (
+								<button
+									type="button"
+									className="focus-ring map-add-station"
+									onClick={() => toast('Add station workflow is available in Admin.')}
+								>
+									Add Station
+								</button>
+							) : null}
+						</div>
+
+						<div className="map-trip-planner-shell">
+							<RoutePlannerPanel
+								maptilerKey={maptilerKey}
+								isPlanning={isPlanningTrip}
+								summary={routePlanSummary}
+								hasActiveRoute={Boolean(routeGeoJSON)}
+								onPlanRoute={handlePlanTrip}
+								onClearRoute={clearRoute}
+							/>
+						</div>
 
 						<div className="map-hud-bottom-left">
 							<div className="glass-card map-stats-bar">
@@ -859,24 +1167,68 @@ function MapPage() {
 				<style>
 					{`
 						.map-layout-shell {
-							height: calc(100vh - 4.75rem);
+							position: relative;
+							height: 100svh;
 							display: grid;
-							grid-template-columns: 320px minmax(0, 1fr);
-							gap: 0.55rem;
-							padding-inline: 0.55rem;
+							grid-template-columns: minmax(0, 1fr);
+							gap: 0;
+							padding: 0;
 						}
 
 						.map-sidebar-desktop {
+							position: absolute;
+							left: 1rem;
+							top: 5.2rem;
+							bottom: 1rem;
+							z-index: 8;
+							width: 320px;
 							min-width: 0;
 							overflow: hidden;
-							padding: 0.55rem;
+							padding: 0.65rem;
+							border-radius: 16px;
+							border-right: 1px solid var(--border-subtle);
 						}
 
 						.map-canvas-shell {
 							position: relative;
-							border: 1px solid var(--border);
-							border-radius: 2px;
+							border: none;
+							border-radius: 0;
 							overflow: hidden;
+							min-height: 100svh;
+						}
+
+						.map-top-pill {
+							position: absolute;
+							left: 50%;
+							top: 5.25rem;
+							transform: translateX(-50%);
+							z-index: 7;
+							min-height: 42px;
+							padding: 0.4rem 0.7rem;
+							border-radius: 999px;
+							display: inline-flex;
+							align-items: center;
+							gap: 0.55rem;
+							color: var(--text-primary);
+							font-size: 0.84rem;
+						}
+
+						.map-add-station {
+							border: 1px solid var(--border-subtle);
+							border-radius: 999px;
+							background: rgba(0, 232, 204, 0.12);
+							color: var(--cyan);
+							min-height: 28px;
+							padding: 0 0.58rem;
+							font-size: 0.76rem;
+						}
+
+						.map-trip-planner-shell {
+							position: absolute;
+							right: 1rem;
+							top: 5.25rem;
+							z-index: 7;
+							width: min(360px, calc(100vw - 2rem));
 						}
 
 						.map-hud-bottom-left {
@@ -887,14 +1239,14 @@ function MapPage() {
 						}
 
 						.map-stats-bar {
-							border-radius: 2px;
+							border-radius: 999px;
 							padding: 0.45rem 0.78rem;
 							font-size: 0.75rem;
 							display: inline-flex;
 							align-items: center;
 							gap: 0.6rem;
 							flex-wrap: wrap;
-							background: rgba(18, 18, 18, 0.95);
+							background: rgba(15, 30, 48, 0.9);
 						}
 
 						.map-mobile-toggle {
@@ -935,11 +1287,20 @@ function MapPage() {
 								grid-template-columns: minmax(0, 1fr);
 								padding-inline: 0;
 								gap: 0;
-								height: calc(100vh - 4.25rem);
+								height: 100svh;
 							}
 
 							.map-sidebar-desktop {
 								display: none;
+							}
+
+							.map-trip-planner-shell {
+								left: 0.75rem;
+								right: 0.75rem;
+								top: auto;
+								bottom: 4.5rem;
+								width: auto;
+								z-index: 6;
 							}
 
 							.map-canvas-shell {
@@ -951,6 +1312,12 @@ function MapPage() {
 							.map-hud-bottom-left {
 								left: 0.7rem;
 								bottom: 3.9rem;
+							}
+
+							.map-top-pill {
+								top: 4.8rem;
+								max-width: calc(100vw - 1.4rem);
+								white-space: nowrap;
 							}
 
 							.map-stats-bar {

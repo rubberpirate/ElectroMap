@@ -64,6 +64,24 @@ const haversineDistanceKm = (from, to) => {
   return earthRadiusKm * c
 }
 
+const createBoundsAroundLocation = ({ lat, lng, radiusKm }) => {
+  const latitude = Number(lat)
+  const longitude = Number(lng)
+  const radius = Number(radiusKm) || 20
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null
+  }
+
+  const latDelta = radius / 111.32
+  const lngDelta = radius / (111.32 * Math.max(Math.cos((latitude * Math.PI) / 180), 0.18))
+
+  return [
+    [longitude - lngDelta, latitude - latDelta],
+    [longitude + lngDelta, latitude + latDelta],
+  ]
+}
+
 function MapView({
   stations,
   selectedStation,
@@ -88,7 +106,7 @@ function MapView({
   const routePlannerMarkersRef = useRef([])
   const viewportDebounceRef = useRef(null)
   const mapStyleRef = useRef('')
-  const hasCenteredOnUserRef = useRef(false)
+  const userLocationFitKeyRef = useRef('')
   const hasAutoFitStationsRef = useRef(false)
   const initialUserLocationRef = useRef(userLocation)
   const initialMapCenterRef = useRef(mapCenter)
@@ -334,10 +352,11 @@ function MapView({
         const onClick = (event) => {
           event.stopPropagation()
 
-          markerElement.classList.remove('station-map-marker-bounce')
+          const coreElement = markerElement.querySelector('.station-marker-core')
+          coreElement?.classList.remove('station-map-marker-bounce')
           // Trigger the bounce animation on every click.
           void markerElement.offsetWidth
-          markerElement.classList.add('station-map-marker-bounce')
+          coreElement?.classList.add('station-map-marker-bounce')
 
           onStationSelectRef.current?.(station)
 
@@ -649,14 +668,34 @@ function MapView({
 
     ensureUserMarker(nextLocation)
 
-    if (!hasCenteredOnUserRef.current) {
-      map.easeTo({
-        center: [nextLocation.lng, nextLocation.lat],
-        zoom: Math.max(map.getZoom(), 11),
-        duration: 620,
+    const locationKey = `${nextLocation.lat.toFixed(5)}:${nextLocation.lng.toFixed(5)}`
+    if (userLocationFitKeyRef.current !== locationKey) {
+      const bounds = createBoundsAroundLocation({
+        ...nextLocation,
+        radiusKm: 20,
       })
 
-      hasCenteredOnUserRef.current = true
+      if (bounds) {
+        const compactViewport =
+          typeof window !== 'undefined' && window.matchMedia('(max-width: 960px)').matches
+
+        map.fitBounds(bounds, {
+          padding: compactViewport
+            ? { top: 96, right: 54, bottom: 190, left: 54 }
+            : { top: 110, right: 110, bottom: 110, left: 360 },
+          maxZoom: 12.2,
+          duration: 650,
+          essential: true,
+        })
+      } else {
+        map.easeTo({
+          center: [nextLocation.lng, nextLocation.lat],
+          zoom: Math.max(map.getZoom(), 11),
+          duration: 620,
+        })
+      }
+
+      userLocationFitKeyRef.current = locationKey
     }
   }, [ensureUserMarker, userLocation])
 
@@ -774,6 +813,42 @@ function MapView({
     })
   }, [selectedStation])
 
+  useEffect(() => {
+    const map = mapRef.current
+    const coordinates = routeGeoJSON?.geometry?.coordinates
+
+    if (!map || !Array.isArray(coordinates) || coordinates.length < 2) {
+      return
+    }
+
+    const bounds = new maplibregl.LngLatBounds()
+    coordinates.forEach((coordinate) => {
+      if (
+        Array.isArray(coordinate) &&
+        Number.isFinite(Number(coordinate[0])) &&
+        Number.isFinite(Number(coordinate[1]))
+      ) {
+        bounds.extend([Number(coordinate[0]), Number(coordinate[1])])
+      }
+    })
+
+    if (bounds.isEmpty()) {
+      return
+    }
+
+    const compactViewport =
+      typeof window !== 'undefined' && window.matchMedia('(max-width: 960px)').matches
+
+    map.fitBounds(bounds, {
+      padding: compactViewport
+        ? { top: 110, right: 40, bottom: 220, left: 40 }
+        : { top: 120, right: 420, bottom: 120, left: 360 },
+      maxZoom: 12.5,
+      duration: 700,
+      essential: true,
+    })
+  }, [routeGeoJSON])
+
   return (
     <div
       className="electromap-map-root"
@@ -781,7 +856,7 @@ function MapView({
         position: 'relative',
         width: '100%',
         height: '100%',
-        background: 'var(--bg-secondary)',
+        background: 'var(--bg-deep)',
       }}
     >
       <div ref={mapContainerRef} style={{ position: 'absolute', inset: 0 }} />
@@ -795,7 +870,7 @@ function MapView({
             top: '0.8rem',
             zIndex: 4,
             maxWidth: 320,
-            borderRadius: '2px',
+            borderRadius: '12px',
             padding: '0.7rem 0.8rem',
             color: 'var(--accent-red)',
           }}
@@ -809,9 +884,9 @@ function MapView({
       <style>
         {`
           .electromap-map-root .maplibregl-ctrl-group {
-            border: 1px solid #2a2a2a;
+            border: 1px solid rgba(0, 232, 204, 0.14);
             box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
-            background: rgba(18, 18, 18, 0.92);
+            background: rgba(15, 30, 48, 0.92);
           }
 
           .electromap-map-root .maplibregl-ctrl button .maplibregl-ctrl-icon {
@@ -819,18 +894,18 @@ function MapView({
           }
 
           .electromap-map-root .maplibregl-ctrl-scale {
-            border: 1px solid #2a2a2a;
-            background: rgba(18, 18, 18, 0.9);
-            color: #f0f0f0;
+            border: 1px solid rgba(0, 232, 204, 0.14);
+            background: rgba(15, 30, 48, 0.9);
+            color: #e6f2ef;
           }
 
           .electromap-map-root .electromap-user-marker {
             width: 18px;
             height: 18px;
             border-radius: 999px;
-            background: rgba(255, 255, 255, 0.14);
-            border: 1px solid rgba(255, 255, 255, 0.82);
-            box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.25);
+            background: rgba(0, 232, 204, 0.14);
+            border: 1px solid rgba(0, 232, 204, 0.82);
+            box-shadow: 0 0 0 0 rgba(0, 232, 204, 0.25);
             display: grid;
             place-items: center;
             animation: pulse-glow 1.9s ease-in-out infinite;
@@ -840,7 +915,7 @@ function MapView({
             width: 8px;
             height: 8px;
             border-radius: 999px;
-            background: #f0f0f0;
+            background: #00e8cc;
           }
 
           .electromap-map-root .route-stop-marker {
@@ -848,19 +923,19 @@ function MapView({
             height: 28px;
             border-radius: 999px;
             border: 1px solid rgba(255, 255, 255, 0.65);
-            color: #f0f0f0;
-            font-family: 'Space Mono', monospace;
+            color: #e6f2ef;
+            font-family: 'JetBrains Mono', monospace;
             font-size: 0.74rem;
             font-weight: 700;
             display: grid;
             place-items: center;
-            box-shadow: 0 0 14px rgba(255, 255, 255, 0.18);
-            background: #161616;
+            box-shadow: 0 0 14px rgba(0, 232, 204, 0.22);
+            background: #162840;
           }
 
           .electromap-map-root .route-stop-marker-station {
-            border-color: rgba(255, 51, 51, 0.9);
-            box-shadow: 0 0 0 2px #ff3333, 0 0 14px rgba(255, 51, 51, 0.36);
+            border-color: rgba(0, 232, 204, 0.9);
+            box-shadow: var(--glow-cyan);
           }
 
           .electromap-map-root .station-map-marker-bounce {
@@ -869,7 +944,7 @@ function MapView({
 
           @keyframes station-marker-bounce {
             0% { transform: translateY(0) scale(1); }
-            35% { transform: translateY(-9px) scale(1.06); }
+            35% { transform: translateY(-9px) scale(1.08); }
             70% { transform: translateY(2px) scale(1); }
             100% { transform: translateY(0) scale(1); }
           }

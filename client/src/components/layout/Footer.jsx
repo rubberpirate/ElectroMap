@@ -5,9 +5,9 @@ function Footer() {
   return (
     <footer
       style={{
-        borderTop: '1px solid rgba(255, 255, 255, 0.26)',
-        boxShadow: '0 -8px 30px rgba(255, 255, 255, 0.08)',
-        background: 'linear-gradient(180deg, rgba(10, 22, 40, 0.5), rgba(5, 10, 14, 0.9))',
+        borderTop: '1px solid var(--border-subtle)',
+        boxShadow: '0 -8px 30px rgba(0, 232, 204, 0.08)',
+        background: 'linear-gradient(180deg, rgba(13, 34, 51, 0.74), rgba(5, 10, 14, 0.94))',
       }}
     >
       <div
@@ -26,7 +26,9 @@ function Footer() {
           }}
         >
           <div>
-            <h3 style={{ fontSize: '1.15rem', marginBottom: '0.58rem' }}>ElectroMap</h3>
+            <h3 style={{ fontSize: '1.15rem', marginBottom: '0.58rem', textTransform: 'uppercase' }}>
+              <span style={{ color: 'var(--cyan)' }}>E</span>LECTROMAP
+            </h3>
             <p style={{ color: 'var(--text-secondary)', maxWidth: 260 }}>
               Intelligent EV charging discovery for high-confidence trips.
             </p>
@@ -35,9 +37,10 @@ function Footer() {
           <div>
             <h4 style={{ marginBottom: '0.58rem', fontSize: '1rem' }}>Links</h4>
             <div style={{ display: 'grid', gap: '0.4rem', color: 'var(--text-secondary)' }}>
+              <Link to="/#about">About</Link>
               <Link to="/map">Map</Link>
-              <Link to="/">About</Link>
-              <Link to="/">Contact</Link>
+              <Link to="/#featured-stations">Stations</Link>
+              <Link to="/#pricing">Pricing</Link>
             </div>
           </div>
 
@@ -57,8 +60,8 @@ function Footer() {
           </div>
         </div>
 
-        <small style={{ color: 'var(--text-secondary)' }}>
-          ElectroMap | Real-time EV charging intelligence
+        <small className="mono-data" style={{ color: 'var(--text-secondary)' }}>
+          © {new Date().getFullYear()} ElectroMap | Real-time EV charging intelligence
         </small>
       </div>
     </footer>

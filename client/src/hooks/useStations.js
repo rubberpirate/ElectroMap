@@ -5,7 +5,7 @@ import api from '../services/api'
 import { useMapStore } from '../store/mapStore'
 import { isMockModeEnabled } from '../utils/mockMode'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 80
 const EMPTY_ARRAY = []
 
 const dedupeById = (items) => {

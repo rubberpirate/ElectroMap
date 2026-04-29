@@ -6,7 +6,6 @@ import {
   Edit3,
   LayoutDashboard,
   MapPinned,
-  MessageSquare,
   Plus,
   Shield,
   Trash2,
@@ -30,21 +29,19 @@ import StationFormModal from '../components/admin/StationFormModal'
 import { Navbar, PageWrapper } from '../components/layout'
 import { Button, Input } from '../components/ui'
 import { getMockStations } from '../data/mockStations'
-import useSocket from '../hooks/useSocket'
 import api from '../services/api'
 import { isMockModeEnabled } from '../utils/mockMode'
 
 const adminTabs = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'stations', label: 'Stations', icon: MapPinned },
-  { id: 'chargers', label: 'Chargers', icon: BatteryCharging },
-  { id: 'reviews', label: 'Reviews', icon: MessageSquare },
   { id: 'users', label: 'Users', icon: UserRound },
+  { id: 'chargers', label: 'Chargers', icon: BatteryCharging },
+  { id: 'overview', label: 'Analytics', icon: LayoutDashboard },
 ]
 
 const CHARGER_STATUS_OPTIONS = ['available', 'occupied', 'offline', 'maintenance']
 
-const CHART_COLORS = ['#f0f0f0', '#ffb800', '#ff3d5a', '#8ca1b5']
+const CHART_COLORS = ['#00e8cc', '#fd7a01', '#ff4d6d', '#588197']
 
 const formatDate = (value) => {
   if (!value) {
@@ -228,7 +225,7 @@ const TableSkeleton = ({ rows = 6, columns = 5 }) => (
 )
 
 function Admin() {
-  const { socket } = useSocket()
+  const socket = null
 
   const [activeTab, setActiveTab] = useState('overview')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)

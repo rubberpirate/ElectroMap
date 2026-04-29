@@ -5,7 +5,7 @@ function GradientText({ children, className }) {
     <span
       className={cn(className)}
       style={{
-        background: 'linear-gradient(118deg, #8ee8ff 0%, #f0f0f0 35%, #ff3333 78%, #b983ff 100%)',
+        background: 'linear-gradient(118deg, #00e8cc 0%, #e6f2ef 45%, #fd7a01 100%)',
         WebkitBackgroundClip: 'text',
         backgroundClip: 'text',
         color: 'transparent',

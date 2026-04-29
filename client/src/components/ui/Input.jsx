@@ -6,9 +6,9 @@ const getInputWrapperStyles = ({ hasError, disabled }) => ({
   display: 'flex',
   alignItems: 'center',
   gap: '0.55rem',
-  borderRadius: '2px',
-  border: `1px solid ${hasError ? 'rgba(255, 51, 51, 0.64)' : '#2a2a2a'}`,
-  background: '#161616',
+  borderRadius: '12px',
+  border: `1px solid ${hasError ? 'rgba(255, 77, 109, 0.64)' : 'var(--border-subtle)'}`,
+  background: 'rgba(22, 40, 64, 0.82)',
   paddingInline: '0.78rem',
   minHeight: '46px',
   transition: 'border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease',
@@ -66,7 +66,7 @@ const Input = forwardRef(function Input(
               top: '0.75rem',
               fontSize: '0.78rem',
               color: hasError ? 'var(--accent-red)' : 'var(--text-secondary)',
-              background: 'var(--bg-primary)',
+              background: 'var(--bg-deep)',
               paddingInline: '0.3rem',
               transition: 'all 160ms ease',
               pointerEvents: 'none',
@@ -120,6 +120,7 @@ const Input = forwardRef(function Input(
             border: 'none',
             outline: 'none',
             fontSize: '0.95rem',
+            color: 'var(--text-primary)',
           }}
           {...props}
         />

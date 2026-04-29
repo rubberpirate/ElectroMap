@@ -1,5 +1,6 @@
+import { AnimatePresence } from 'framer-motion'
 import { lazy, Suspense, useEffect } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import AppLoadingScreen from './components/layout/AppLoadingScreen'
@@ -16,6 +17,7 @@ const StationDetail = lazy(() => import('./pages/StationDetail'))
 
 function App() {
   const checkAuth = useAuthStore((state) => state.checkAuth)
+  const location = useLocation()
 
   useEffect(() => {
     checkAuth()
@@ -23,31 +25,34 @@ function App() {
 
   return (
     <Suspense fallback={<AppLoadingScreen />}>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/map" element={<MapPage />} />
-        <Route path="/station/:id" element={<StationDetail />} />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute requireAdmin>
-              <Admin />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/404" element={<NotFound />} />
-        <Route path="*" element={<Navigate to="/404" replace />} />
-      </Routes>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<Home />} />
+          <Route path="/map" element={<MapPage />} />
+          <Route path="/station/:id" element={<StationDetail />} />
+          <Route path="/stations/:id" element={<StationDetail />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requireAdmin>
+                <Admin />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/404" element={<NotFound />} />
+          <Route path="*" element={<Navigate to="/404" replace />} />
+        </Routes>
+      </AnimatePresence>
     </Suspense>
   )
 }

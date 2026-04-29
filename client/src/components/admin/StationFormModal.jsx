@@ -280,7 +280,7 @@ function StationFormModal({ isOpen, mode = 'create', station, onClose, onSuccess
     const coordinates = [lng, lat]
 
     if (!markerRef.current) {
-      markerRef.current = new maplibregl.Marker({ color: '#ff3333' })
+      markerRef.current = new maplibregl.Marker({ color: '#00e8cc' })
         .setLngLat(coordinates)
         .addTo(map)
     } else {

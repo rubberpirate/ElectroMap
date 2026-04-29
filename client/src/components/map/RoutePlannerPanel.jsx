@@ -34,7 +34,7 @@ function RoutePlannerPanel({
   onPlanRoute,
   onClearRoute,
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
   const [startInput, setStartInput] = useState('')
   const [endInput, setEndInput] = useState('')
   const [startSelection, setStartSelection] = useState(null)
@@ -135,7 +135,7 @@ function RoutePlannerPanel({
   }
 
   return (
-    <div className="glass-card" style={{ borderRadius: '2px', overflow: 'hidden' }}>
+    <div className="glass-card" style={{ borderRadius: '12px', overflow: 'visible' }}>
       <button
         type="button"
         className="focus-ring"
@@ -155,7 +155,7 @@ function RoutePlannerPanel({
       >
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
           <Route size={15} />
-          Route Planner
+          Trip Planner
         </span>
         <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
           {open ? 'Hide' : 'Plan'}
@@ -168,10 +168,10 @@ function RoutePlannerPanel({
             <div
               className="glass-card"
               style={{
-                borderRadius: '2px',
-                borderColor: 'rgba(255, 51, 51, 0.34)',
-                background: 'rgba(255, 51, 51, 0.08)',
-                color: 'var(--accent-red)',
+                borderRadius: '12px',
+                borderColor: 'rgba(255, 77, 109, 0.34)',
+                background: 'rgba(255, 77, 109, 0.08)',
+                color: 'var(--red-alert)',
                 fontSize: '0.82rem',
                 padding: '0.5rem',
               }}
@@ -345,9 +345,9 @@ function RoutePlannerPanel({
             z-index: 17;
             display: grid;
             gap: 0.28rem;
-            background: rgba(13, 13, 13, 0.96);
-            border: 1px solid #2a2a2a;
-            border-radius: 2px;
+            background: rgba(15, 30, 48, 0.96);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
             padding: 0.34rem;
             max-height: 180px;
             overflow-y: auto;

@@ -15,9 +15,10 @@ import { cn } from '../../utils/cn'
 import { Avatar, Button } from '../ui'
 
 const navItems = [
-  { label: 'Home', to: '/', mode: 'route' },
+  { label: 'About', to: '/#about', mode: 'hash' },
   { label: 'Map', to: '/map', mode: 'route' },
-  { label: 'How It Works', to: '/#how-it-works', mode: 'hash' },
+  { label: 'Stations', to: '/#featured-stations', mode: 'hash' },
+  { label: 'Pricing', to: '/#pricing', mode: 'hash' },
 ]
 
 const navShellStyle = (isScrolled) => ({
@@ -26,19 +27,19 @@ const navShellStyle = (isScrolled) => ({
   left: 0,
   right: 0,
   zIndex: 50,
-  transition: 'all 240ms var(--easing-smooth)',
-  borderBottom: isScrolled ? '1px solid var(--border)' : '1px solid transparent',
-  backdropFilter: isScrolled ? 'blur(14px)' : 'blur(0px)',
-  WebkitBackdropFilter: isScrolled ? 'blur(14px)' : 'blur(0px)',
-  background: isScrolled ? 'rgba(5, 10, 14, 0.65)' : 'rgba(5, 10, 14, 0)',
+  transition: 'all 0.2s ease',
+  borderBottom: isScrolled ? '1px solid var(--border-subtle)' : '1px solid transparent',
+  backdropFilter: 'blur(16px)',
+  WebkitBackdropFilter: 'blur(16px)',
+  background: isScrolled ? 'rgba(11, 18, 32, 0.78)' : 'rgba(11, 18, 32, 0.36)',
 })
 
 const iconButtonStyle = {
   width: 40,
   height: 40,
   borderRadius: '12px',
-  border: '1px solid var(--border)',
-  background: 'rgba(10, 22, 40, 0.65)',
+  border: '1px solid var(--border-subtle)',
+  background: 'rgba(22, 40, 64, 0.7)',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -59,37 +60,15 @@ function Logo() {
       }}
     >
       <span
-        aria-hidden="true"
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: '10px',
-          border: '1px solid rgba(255, 255, 255, 0.45)',
-          background: 'linear-gradient(130deg, rgba(255, 255, 255, 0.35), rgba(255, 51, 51, 0.25))',
-          display: 'grid',
-          placeItems: 'center',
-          boxShadow: 'var(--glow-cyan)',
-        }}
-      >
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M13.5 2L5 13h5l-1 9 9-12h-5l.5-8z"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </span>
-      <span
         style={{
           fontFamily: 'Syne, sans-serif',
-          fontWeight: 700,
-          fontSize: '1.08rem',
-          letterSpacing: '0.02em',
+          fontWeight: 800,
+          fontSize: '1.04rem',
+          letterSpacing: 0,
+          textTransform: 'uppercase',
         }}
       >
-        ElectroMap
+        <span style={{ color: 'var(--cyan)' }}>E</span>LECTROMAP
       </span>
     </Link>
   )
@@ -99,11 +78,10 @@ function DesktopNav() {
   const location = useLocation()
 
   return (
-    <nav aria-label="Primary" style={{ display: 'flex', gap: '1.2rem' }}>
+    <nav aria-label="Primary" style={{ display: 'flex', gap: '1.6rem' }}>
       {navItems.map((item, index) => {
         const isHashItem = item.mode === 'hash'
-        const isHashActive =
-          isHashItem && location.pathname === '/' && location.hash === '#how-it-works'
+        const isHashActive = isHashItem && location.pathname === '/' && location.hash === item.to.slice(1)
 
         if (isHashItem) {
           return (
@@ -116,10 +94,10 @@ function DesktopNav() {
               transition={{ delay: 0.08 + index * 0.06 }}
               style={{
                 textDecoration: 'none',
-                color: isHashActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                color: isHashActive ? 'var(--cyan)' : 'var(--text-secondary)',
                 paddingBottom: '0.32rem',
                 borderBottom: isHashActive
-                  ? '2px solid var(--accent-primary)'
+                  ? '2px solid var(--cyan)'
                   : '2px solid transparent',
                 transition: 'all 180ms ease',
               }}
@@ -141,10 +119,10 @@ function DesktopNav() {
               className="focus-ring"
               style={({ isActive }) => ({
                 textDecoration: 'none',
-                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                color: isActive ? 'var(--cyan)' : 'var(--text-secondary)',
                 paddingBottom: '0.32rem',
                 borderBottom: isActive
-                  ? '2px solid var(--accent-primary)'
+                  ? '2px solid var(--cyan)'
                   : '2px solid transparent',
                 transition: 'all 180ms ease',
               })}
@@ -160,7 +138,9 @@ function DesktopNav() {
 
 function AuthActions({ compact = false, onNavigate }) {
   const navigate = useNavigate()
-  const { isAuthenticated, user, logout } = useAuthStore()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const user = useAuthStore((state) => state.user)
+  const logout = useAuthStore((state) => state.logout)
   const [menuOpen, setMenuOpen] = useState(false)
 
   const initialsSource = useMemo(
@@ -189,7 +169,7 @@ function AuthActions({ compact = false, onNavigate }) {
           style={{ textDecoration: 'none' }}
           onClick={onNavigate}
         >
-          <Button size={compact ? 'sm' : 'md'}>Register</Button>
+          <Button size={compact ? 'sm' : 'md'}>Get Started</Button>
         </Link>
       </div>
     )
@@ -271,7 +251,7 @@ function AuthActions({ compact = false, onNavigate }) {
                 width: '100%',
                 border: 'none',
                 background: 'transparent',
-                color: 'var(--accent-red)',
+                color: 'var(--red-alert)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.55rem',
@@ -305,26 +285,28 @@ function MobileDrawer({ isOpen, onClose }) {
             style={{
               position: 'fixed',
               inset: 0,
-              background: 'rgba(3, 8, 14, 0.58)',
+              background: 'rgba(3, 8, 14, 0.72)',
+              backdropFilter: 'blur(16px)',
               zIndex: 48,
             }}
           />
           <motion.aside
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.25, ease: [0.2, 0.9, 0.2, 1] }}
             className="glass-card"
             style={{
               position: 'fixed',
+              left: 0,
               right: 0,
               top: 0,
               bottom: 0,
-              width: 'min(88vw, 330px)',
+              width: '100%',
               zIndex: 49,
-              padding: '1rem',
+              padding: '1.1rem',
               borderRadius: 0,
-              borderLeft: '1px solid var(--border)',
+              border: 'none',
               display: 'flex',
               flexDirection: 'column',
               gap: '1.4rem',
@@ -340,7 +322,7 @@ function MobileDrawer({ isOpen, onClose }) {
                   width: 38,
                   height: 38,
                   borderRadius: '10px',
-                  border: '1px solid var(--border)',
+                  border: '1px solid var(--border-subtle)',
                   background: 'rgba(10, 22, 40, 0.68)',
                   color: 'var(--text-secondary)',
                 }}
@@ -350,45 +332,59 @@ function MobileDrawer({ isOpen, onClose }) {
               </button>
             </div>
 
-            <nav aria-label="Mobile" style={{ display: 'grid', gap: '0.7rem' }}>
-              {navItems.map((item) => {
+            <nav aria-label="Mobile" style={{ display: 'grid', gap: '0.7rem', marginTop: '8vh' }}>
+              {navItems.map((item, index) => {
                 if (item.mode === 'hash') {
-                  const isActive = location.pathname === '/' && location.hash === '#how-it-works'
+                  const isActive = location.pathname === '/' && location.hash === item.to.slice(1)
                   return (
-                    <a
+                    <motion.a
                       key={item.label}
                       href={item.to}
                       className="focus-ring"
                       onClick={onClose}
+                      initial={{ opacity: 0, y: 14 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
                       style={{
                         textDecoration: 'none',
-                        padding: '0.62rem 0.72rem',
-                        borderRadius: '10px',
-                        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        background: isActive ? 'rgba(255, 255, 255, 0.13)' : 'transparent',
+                        padding: '0.66rem 0',
+                        color: isActive ? 'var(--cyan)' : 'var(--text-primary)',
+                        fontFamily: 'Syne, sans-serif',
+                        fontSize: 'clamp(2rem, 12vw, 4rem)',
+                        fontWeight: 800,
+                        lineHeight: 1,
                       }}
                     >
                       {item.label}
-                    </a>
+                    </motion.a>
                   )
                 }
 
                 return (
-                  <NavLink
+                  <motion.div
                     key={item.label}
-                    to={item.to}
-                    className="focus-ring"
-                    onClick={onClose}
-                    style={({ isActive }) => ({
-                      textDecoration: 'none',
-                      padding: '0.62rem 0.72rem',
-                      borderRadius: '10px',
-                      color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      background: isActive ? 'rgba(255, 255, 255, 0.13)' : 'transparent',
-                    })}
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
                   >
-                    {item.label}
-                  </NavLink>
+                    <NavLink
+                      to={item.to}
+                      className="focus-ring"
+                      onClick={onClose}
+                      style={({ isActive }) => ({
+                        textDecoration: 'none',
+                        padding: '0.66rem 0',
+                        color: isActive ? 'var(--cyan)' : 'var(--text-primary)',
+                        fontFamily: 'Syne, sans-serif',
+                        fontSize: 'clamp(2rem, 12vw, 4rem)',
+                        fontWeight: 800,
+                        lineHeight: 1,
+                        display: 'block',
+                      })}
+                    >
+                      {item.label}
+                    </NavLink>
+                  </motion.div>
                 )
               })}
             </nav>
@@ -453,7 +449,7 @@ function Navbar() {
               width: 40,
               height: 40,
               borderRadius: '11px',
-              border: '1px solid var(--border)',
+              border: '1px solid var(--border-subtle)',
               background: 'rgba(10, 22, 40, 0.7)',
               color: 'var(--text-primary)',
             }}

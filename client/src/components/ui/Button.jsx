@@ -6,13 +6,13 @@ import Spinner from './Spinner'
 
 const variantStyles = {
   primary: {
-    background: '#1a1a1a',
-    color: '#f0f0f0',
-    border: '1px solid rgba(255, 51, 51, 0.72)',
-    boxShadow: '0 0 0 1px rgba(255, 51, 51, 0.2), 0 6px 18px rgba(0, 0, 0, 0.36)',
+    background: 'var(--cyan)',
+    color: '#03131b',
+    border: '1px solid rgba(0, 232, 204, 0.76)',
+    boxShadow: 'var(--glow-cyan)',
   },
   secondary: {
-    background: '#171717',
+    background: 'rgba(22, 40, 64, 0.82)',
     color: 'var(--text-primary)',
     border: '1px solid var(--glass-border-strong)',
     boxShadow: 'none',
@@ -24,10 +24,16 @@ const variantStyles = {
     boxShadow: 'none',
   },
   danger: {
-    background: 'rgba(255, 51, 51, 0.12)',
-    color: '#ffaaaa',
-    border: '1px solid rgba(255, 51, 51, 0.64)',
+    background: 'rgba(255, 77, 109, 0.12)',
+    color: '#ffc0ca',
+    border: '1px solid rgba(255, 77, 109, 0.64)',
     boxShadow: '0 6px 18px rgba(0, 0, 0, 0.28)',
+  },
+  icon: {
+    background: 'rgba(22, 40, 64, 0.82)',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border-subtle)',
+    boxShadow: 'none',
   },
 }
 
@@ -36,21 +42,21 @@ const sizeStyles = {
     height: 36,
     paddingInline: 14,
     fontSize: '0.86rem',
-    borderRadius: '2px',
+    borderRadius: '999px',
     gap: '0.35rem',
   },
   md: {
     height: 44,
     paddingInline: 18,
     fontSize: '0.95rem',
-    borderRadius: '2px',
+    borderRadius: '999px',
     gap: '0.45rem',
   },
   lg: {
     height: 52,
     paddingInline: 24,
     fontSize: '1rem',
-    borderRadius: '2px',
+    borderRadius: '999px',
     gap: '0.5rem',
   },
 }
@@ -134,8 +140,8 @@ const Button = forwardRef(function Button(
         alignItems: 'center',
         justifyContent: 'center',
         fontWeight: 600,
-        letterSpacing: '0.01em',
-        transition: 'transform 140ms var(--easing-smooth), box-shadow 180ms ease',
+        letterSpacing: 0,
+        transition: 'all 0.15s ease',
         opacity: computedDisabled ? 0.7 : 1,
       }}
       {...props}

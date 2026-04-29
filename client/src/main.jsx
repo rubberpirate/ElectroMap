@@ -16,10 +16,10 @@ createRoot(document.getElementById('root')).render(
           position="top-right"
           toastOptions={{
             style: {
-              background: 'rgba(18, 18, 18, 0.95)',
+              background: '#0f1e30',
               color: 'var(--text-primary)',
-              border: '1px solid var(--border)',
-              boxShadow: '0 12px 24px rgba(0, 0, 0, 0.4)',
+              border: '1px solid rgba(0,232,204,0.15)',
+              boxShadow: '0 12px 24px rgba(0, 0, 0, 0.34)',
             },
             success: {
               style: {
@@ -29,8 +29,8 @@ createRoot(document.getElementById('root')).render(
             },
             error: {
               style: {
-                border: '1px solid rgba(255, 51, 51, 0.6)',
-                boxShadow: '0 12px 24px rgba(255, 51, 51, 0.2)',
+                border: '1px solid rgba(255, 77, 109, 0.6)',
+                boxShadow: '0 12px 24px rgba(255, 77, 109, 0.18)',
               },
             },
           }}

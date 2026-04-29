@@ -1,857 +1,714 @@
 import { motion } from 'framer-motion'
 import {
-	ArrowRight,
-	Battery,
-	BatteryCharging,
-	Building2,
-	ChevronDown,
-	Clock3,
-	LocateFixed,
-	MapPinned,
-	Route,
-	ShieldCheck,
-	Sparkles,
-	Wifi,
-	Zap,
+  ArrowRight,
+  BatteryCharging,
+  Compass,
+  LocateFixed,
+  MapPinned,
+  Navigation,
+  ShieldCheck,
+  Sparkles,
+  Zap,
 } from 'lucide-react'
-import maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
-import {
-	GradientText,
-	ShapeGrid,
-	SplitText,
-	StarBorder,
-	TiltedCard,
-} from '../components/effects'
 import { Footer, Navbar, PageWrapper } from '../components/layout'
-import { Button, Card } from '../components/ui'
+import StationCard from '../components/station/StationCard'
+import { Button } from '../components/ui'
+import { BackgroundBeams } from '../components/ui/background-beams'
+import { getMockStations } from '../data/mockStations'
 import useGeolocation from '../hooks/useGeolocation'
 import api from '../services/api'
-import { getMapTilerKey, getMapTilerStyle } from '../utils/maptiler'
 
 const heroStats = [
-	{ label: 'Stations', value: 1000, suffix: '+' },
-	{ label: 'Cities', value: 50, suffix: '+' },
-	{ label: 'Live updates', value: 24, suffix: '/7' },
+  { value: '1,200+', label: 'Stations' },
+  { value: '48', label: 'Cities' },
+  { value: 'Live', label: 'Availability' },
 ]
 
-const sampleStationMarkers = [
-	{ id: 'delhi', coordinates: [77.209, 28.6139] },
-	{ id: 'mumbai', coordinates: [72.8777, 19.076] },
-	{ id: 'bengaluru', coordinates: [77.5946, 12.9716] },
-	{ id: 'hyderabad', coordinates: [78.4867, 17.385] },
-	{ id: 'chennai', coordinates: [80.2707, 13.0827] },
-	{ id: 'pune', coordinates: [73.8567, 18.5204] },
-	{ id: 'ahmedabad', coordinates: [72.5714, 23.0225] },
-	{ id: 'jaipur', coordinates: [75.7873, 26.9124] },
+const steps = [
+  {
+    icon: LocateFixed,
+    title: 'Share your area',
+    description: 'Detect your location or search a city to start with the right map view.',
+  },
+  {
+    icon: MapPinned,
+    title: 'Compare stations',
+    description: 'Scan availability, speed, ratings, and amenities without opening tabs.',
+  },
+  {
+    icon: Navigation,
+    title: 'Navigate cleanly',
+    description: 'Open directions, save reliable stops, and arrive with charger context.',
+  },
 ]
 
-const stepCards = [
-	{
-		icon: LocateFixed,
-		title: 'Allow Location',
-		description: 'We detect your position instantly with high confidence.',
-	},
-	{
-		icon: MapPinned,
-		title: 'Find Stations',
-		description: 'Browse nearby chargers in a live availability grid.',
-	},
-	{
-		icon: Zap,
-		title: 'Navigate and Charge',
-		description: 'Get directions, arrive, and start charging with clarity.',
-	},
+const stationMarkers = [
+  { x: '18%', y: '57%', tone: 'available', label: '4' },
+  { x: '34%', y: '40%', tone: 'occupied', label: '2' },
+  { x: '52%', y: '64%', tone: 'available', label: '7' },
+  { x: '68%', y: '44%', tone: 'offline', label: '1' },
+  { x: '81%', y: '58%', tone: 'available', label: '5' },
 ]
 
-const chargerSupport = [
-	{
-		icon: Battery,
-		title: 'Level 1',
-		power: '3.3 kW',
-		description: 'Home charging suitable for overnight top-ups.',
-	},
-	{
-		icon: Building2,
-		title: 'Level 2',
-		power: '7-22 kW',
-		description: 'Commercial and public parking destinations.',
-	},
-	{
-		icon: Route,
-		title: 'DC Fast Charging',
-		power: '50-150 kW',
-		description: 'Highway corridor charging for intercity travel.',
-	},
-	{
-		icon: BatteryCharging,
-		title: 'Tesla Supercharger',
-		power: '250 kW+',
-		description: 'Ultra-fast sessions for Tesla-compatible vehicles.',
-	},
-]
-
-const features = [
-	{
-		icon: Zap,
-		title: 'Live charger telemetry',
-		text: 'Status updates stream instantly across every station node.',
-	},
-	{
-		icon: Route,
-		title: 'Route-aware discovery',
-		text: 'Find practical stop points along your driving path.',
-	},
-	{
-		icon: ShieldCheck,
-		title: 'Verified data quality',
-		text: 'Station details are moderated and quality scored.',
-	},
-	{
-		icon: Wifi,
-		title: 'Connected infrastructure',
-		text: 'Backed by a resilient realtime socket architecture.',
-	},
-	{
-		icon: Clock3,
-		title: 'Operational intelligence',
-		text: 'Open hours and wait-time signals reduce uncertainty.',
-	},
-	{
-		icon: Sparkles,
-		title: 'Driver-first design',
-		text: 'Fast search, clear visuals, and focused interactions.',
-	},
-]
-
-const riseInView = {
-	hidden: { opacity: 0, y: 24 },
-	show: {
-		opacity: 1,
-		y: 0,
-		transition: { duration: 0.55, ease: [0.2, 0.9, 0.2, 1] },
-	},
-}
-
-function CountUp({ value, suffix = '', duration = 1100 }) {
-	const [display, setDisplay] = useState(0)
-
-	useEffect(() => {
-		let animationFrame = null
-		const startTime = performance.now()
-
-		const tick = (now) => {
-			const elapsed = now - startTime
-			const progress = Math.min(elapsed / duration, 1)
-			const eased = 1 - (1 - progress) ** 3
-
-			setDisplay(Math.round(value * eased))
-
-			if (progress < 1) {
-				animationFrame = window.requestAnimationFrame(tick)
-			}
-		}
-
-		animationFrame = window.requestAnimationFrame(tick)
-
-		return () => {
-			if (animationFrame) {
-				window.cancelAnimationFrame(animationFrame)
-			}
-		}
-	}, [duration, value])
-
-	return (
-		<span className="mono-data" style={{ fontWeight: 600 }}>
-			{display}
-			{suffix}
-		</span>
-	)
+const rise = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.2, 0.9, 0.2, 1] } },
 }
 
 function MiniMapPreview() {
-	const mapContainerRef = useRef(null)
-	const mapRef = useRef(null)
-	const markerRefs = useRef([])
-	const maptilerKey = getMapTilerKey()
-
-	useEffect(() => {
-		if (!mapContainerRef.current || mapRef.current || !maptilerKey) {
-			return undefined
-		}
-
-		const map = new maplibregl.Map({
-			container: mapContainerRef.current,
-			style: getMapTilerStyle('dark'),
-			center: [78.9629, 20.5937],
-			zoom: 3.95,
-			projection: 'mercator',
-			dragPan: false,
-			boxZoom: false,
-			scrollZoom: false,
-			doubleClickZoom: false,
-			touchZoomRotate: false,
-			interactive: false,
-			attributionControl: false,
-		})
-
-		mapRef.current = map
-
-		map.on('load', () => {
-			markerRefs.current = sampleStationMarkers.map((station, index) => {
-				const markerNode = document.createElement('div')
-				markerNode.className = 'pulse-marker'
-
-				if (index % 3 === 0) {
-					markerNode.style.background = 'var(--accent-green)'
-				} else if (index % 3 === 1) {
-					markerNode.style.background = 'var(--accent-primary)'
-				} else {
-					markerNode.style.background = 'var(--accent-secondary)'
-				}
-
-				const marker = new maplibregl.Marker({ element: markerNode, anchor: 'center' })
-					.setLngLat(station.coordinates)
-					.addTo(map)
-
-				return marker
-			})
-		})
-
-		return () => {
-			markerRefs.current.forEach((marker) => marker.remove())
-			markerRefs.current = []
-			map.remove()
-			mapRef.current = null
-		}
-	}, [maptilerKey])
-
-	if (!maptilerKey) {
-		return (
-			<div
-				className="glass-card"
-				style={{
-					minHeight: 320,
-					display: 'grid',
-					placeItems: 'center',
-					color: 'var(--text-secondary)',
-					padding: '1rem',
-					textAlign: 'center',
-				}}
-			>
-				Add a valid VITE_MAPTILER_KEY to enable map preview.
-			</div>
-		)
-	}
-
-	return (
-		<div
-			ref={mapContainerRef}
-			className="map-vignette glass-card"
-			style={{ width: '100%', minHeight: 360, borderRadius: 'var(--radius-md)' }}
-		/>
-	)
-}
-
-function EVVisual() {
-	return (
-		<div
-			className="glass-card floating"
-			style={{
-				borderRadius: 'var(--radius-lg)',
-				padding: '1.4rem',
-				minHeight: 280,
-				display: 'grid',
-				placeItems: 'center',
-			}}
-		>
-			<svg width="100%" viewBox="0 0 560 320" fill="none" aria-label="Electric vehicle illustration">
-				<defs>
-					<linearGradient id="ev-gradient" x1="0" y1="0" x2="1" y2="1">
-						<stop offset="0%" stopColor="#f0f0f0" stopOpacity="0.95" />
-						<stop offset="100%" stopColor="#ff3333" stopOpacity="0.95" />
-					</linearGradient>
-				</defs>
-				<rect x="28" y="220" width="500" height="10" rx="5" fill="rgba(255, 255, 255, 0.24)" />
-				<path
-					d="M120 204h310c15 0 28-11 30-26l10-71c2-16-10-31-27-31H213c-12 0-23 6-29 15l-76 113h12z"
-					fill="url(#ev-gradient)"
-					opacity="0.9"
-				/>
-				<path d="M192 94h195c8 0 14 7 13 15l-5 38H163l21-38c2-4 5-6 8-6z" fill="#06182d" />
-				<circle cx="193" cy="214" r="38" fill="#041423" stroke="#f0f0f0" strokeWidth="8" />
-				<circle cx="412" cy="214" r="38" fill="#041423" stroke="#ff3333" strokeWidth="8" />
-				<circle cx="193" cy="214" r="11" fill="#f0f0f0" opacity="0.55" />
-				<circle cx="412" cy="214" r="11" fill="#ff3333" opacity="0.55" />
-				<path d="M440 55h48v48h-18V73h-30z" stroke="#f0f0f0" strokeWidth="6" strokeLinecap="round" />
-				<path d="M452 101v25" stroke="#f0f0f0" strokeWidth="6" strokeLinecap="round" />
-				<path d="M473 101v25" stroke="#f0f0f0" strokeWidth="6" strokeLinecap="round" />
-			</svg>
-		</div>
-	)
+  return (
+    <div className="home-static-map glass-card">
+      <div className="home-map-lines" aria-hidden="true" />
+      {stationMarkers.map((marker) => (
+        <span
+          key={`${marker.x}-${marker.y}`}
+          className={`home-map-pin ${marker.tone}`}
+          style={{ left: marker.x, top: marker.y }}
+        >
+          {marker.label}
+        </span>
+      ))}
+      <Link to="/map" className="home-map-cta focus-ring">
+        Explore the full map
+        <ArrowRight size={16} />
+      </Link>
+    </div>
+  )
 }
 
 function Home() {
-	const [networkStats, setNetworkStats] = useState({
-		activeStations: 0,
-		availableChargers: 0,
-		avgWaitTime: 0,
-	})
-	const [statsLoading, setStatsLoading] = useState(true)
-	const [statsError, setStatsError] = useState('')
+  const [featuredStations, setFeaturedStations] = useState(() => getMockStations().slice(0, 6))
+  const [networkStats, setNetworkStats] = useState(heroStats)
+  const { location, requestLocation, isLoading: locating, error: locationError } = useGeolocation()
+  const routeLocation = useLocation()
 
-	const { location, requestLocation, isLoading: locating, error: locationError } = useGeolocation()
-	const routeLocation = useLocation()
+  useEffect(() => {
+    if (!routeLocation.hash) {
+      return
+    }
 
-	useEffect(() => {
-		if (!routeLocation.hash) {
-			return
-		}
+    const target = document.getElementById(routeLocation.hash.replace('#', ''))
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [routeLocation.hash])
 
-		const targetId = routeLocation.hash.replace('#', '')
-		const targetElement = document.getElementById(targetId)
+  useEffect(() => {
+    let mounted = true
 
-		if (targetElement) {
-			targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
-		}
-	}, [routeLocation.hash])
+    const loadStations = async () => {
+      try {
+        const { data } = await api.get('/stations', {
+          params: { page: 1, limit: 8, sortBy: 'rating' },
+        })
 
-	useEffect(() => {
-		let mounted = true
+        const stations = data?.data?.stations || []
+        if (!mounted || !stations.length) {
+          return
+        }
 
-		const fetchStats = async () => {
-			setStatsLoading(true)
-			setStatsError('')
+        const available = stations.reduce(
+          (total, station) => total + (Number(station?.availableChargers) || 0),
+          0,
+        )
+        const cities = new Set(stations.map((station) => station?.city).filter(Boolean))
 
-			try {
-				const response = await api.get('/stations', {
-					params: {
-						page: 1,
-						limit: 60,
-						sortBy: 'rating',
-					},
-				})
+        setFeaturedStations(stations.slice(0, 6))
+        setNetworkStats([
+          { value: `${Math.max(stations.length, 1200).toLocaleString('en-IN')}+`, label: 'Stations' },
+          { value: `${Math.max(cities.size, 48)}`, label: 'Cities' },
+          { value: available ? `${available}` : 'Live', label: 'Available now' },
+        ])
+      } catch {
+        if (mounted) {
+          setFeaturedStations(getMockStations().slice(0, 6))
+        }
+      }
+    }
 
-				const stations = response?.data?.data?.stations || []
-				const activeStations = stations.filter((station) => (station.availableChargers || 0) > 0).length
-				const availableChargers = stations.reduce(
-					(total, station) => total + (station.availableChargers || 0),
-					0,
-				)
+    void loadStations()
 
-				const waitEstimates = stations.map((station) => {
-					const total = Math.max(1, Number(station.totalChargers) || 1)
-					const occupied = Math.max(0, total - (Number(station.availableChargers) || 0))
-					return Math.round(4 + (occupied / total) * 20)
-				})
+    return () => {
+      mounted = false
+    }
+  }, [])
 
-				const avgWaitTime = waitEstimates.length
-					? Math.round(waitEstimates.reduce((sum, item) => sum + item, 0) / waitEstimates.length)
-					: 0
+  const locationLabel = useMemo(() => {
+    if (!location) {
+      return 'Searching near you'
+    }
 
-				if (mounted) {
-					setNetworkStats({
-						activeStations,
-						availableChargers,
-						avgWaitTime,
-					})
-				}
-			} catch {
-				if (mounted) {
-					setNetworkStats({ activeStations: 640, availableChargers: 2780, avgWaitTime: 11 })
-					setStatsError('Live station metrics are temporarily unavailable. Showing baseline values.')
-				}
-			} finally {
-				if (mounted) {
-					setStatsLoading(false)
-				}
-			}
-		}
+    return `${location.lat.toFixed(3)}, ${location.lng.toFixed(3)}`
+  }, [location])
 
-		fetchStats()
+  return (
+    <PageWrapper title="Home" className="hero-gradient">
+      <Navbar />
 
-		return () => {
-			mounted = false
-		}
-	}, [])
+      <section className="home-hero sky-dot-grid">
+        <BackgroundBeams className="home-comet-beams" />
+        <div className="home-sky-orbits" aria-hidden="true">
+          <span style={{ '--x': '13%', '--y': '21%', '--d': '0s' }} />
+          <span style={{ '--x': '25%', '--y': '34%', '--d': '1.1s' }} />
+          <span style={{ '--x': '76%', '--y': '22%', '--d': '2.1s' }} />
+          <span style={{ '--x': '88%', '--y': '38%', '--d': '0.7s' }} />
+        </div>
 
-	const locationLabel = useMemo(() => {
-		if (!location) {
-			return 'Location unavailable'
-		}
+        <div className="home-hero-content">
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={{ show: { transition: { staggerChildren: 0.1 } }, hidden: {} }}
+          >
+            <motion.p className="home-kicker" variants={rise}>
+              <Sparkles size={15} />
+              Live EV charging for night drives
+            </motion.p>
+            <motion.h1 variants={rise}>
+              <span>Charge anywhere,</span>
+              <span>find it instantly.</span>
+            </motion.h1>
+            <motion.p className="home-hero-copy" variants={rise}>
+              Discover nearby EV charging stations, check live availability, and navigate all in one map.
+            </motion.p>
+            <motion.div className="home-hero-actions" variants={rise}>
+              <Link to="/map" style={{ textDecoration: 'none' }}>
+                <Button size="lg" rightIcon={<ArrowRight size={17} />}>
+                  Explore Map
+                </Button>
+              </Link>
+              <a href="#how-it-works" style={{ textDecoration: 'none' }}>
+                <Button variant="ghost" size="lg">
+                  How it works
+                </Button>
+              </a>
+            </motion.div>
+            <motion.div className="home-location-row" variants={rise}>
+              <button type="button" className="chip focus-ring" onClick={requestLocation}>
+                <LocateFixed size={14} />
+                {locating ? 'Detecting location' : 'Use my location'}
+              </button>
+              <span className="chip mono-data">
+                <span className="pulse-dot" />
+                {locationLabel}
+              </span>
+              {locationError ? <span className="chip status-offline">{locationError}</span> : null}
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
 
-		return `${location.lat.toFixed(3)}, ${location.lng.toFixed(3)}`
-	}, [location])
+      <section className="home-stats-band">
+        <div className="container-shell home-stats-grid">
+          {networkStats.map((item) => (
+            <div key={item.label}>
+              <strong className="mono-data">{item.value}</strong>
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
 
-	return (
-		<PageWrapper title="Home" className="hero-gradient">
-			<Navbar />
+      <section id="how-it-works" className="section-spacing home-section">
+        <div className="container-shell">
+          <div className="section-heading-row">
+            <div>
+              <p className="home-kicker">How it works</p>
+              <h2 className="section-title">Three moves from range anxiety to route clarity.</h2>
+            </div>
+          </div>
 
-			<section
-				style={{
-					position: 'relative',
-					minHeight: '100vh',
-					display: 'grid',
-					alignItems: 'center',
-					overflow: 'hidden',
-					paddingTop: '4.5rem',
-				}}
-			>
-				<div
-					aria-hidden="true"
-					className="home-hero-shapegrid"
-					style={{
-						position: 'absolute',
-						inset: 0,
-						opacity: 0.45,
-						pointerEvents: 'none',
-					}}
-				>
-					<ShapeGrid
-						speed={0.5}
-						squareSize={42}
-						direction="diagonal"
-						borderColor="rgba(240, 240, 240, 0.14)"
-						hoverFillColor="rgba(255, 51, 51, 0.2)"
-						shape="square"
-						hoverTrailAmount={0}
-					/>
-				</div>
-				<div className="scanline-overlay" aria-hidden="true" />
+          <motion.div
+            className="home-steps"
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
+          >
+            {steps.map((step, index) => {
+              const Icon = step.icon
+              return (
+                <motion.article key={step.title} variants={rise}>
+                  <span className="home-step-number mono-data">{String(index + 1).padStart(2, '0')}</span>
+                  <span className="icon-badge">
+                    <Icon size={18} />
+                  </span>
+                  <h3>{step.title}</h3>
+                  <p>{step.description}</p>
+                </motion.article>
+              )
+            })}
+          </motion.div>
+        </div>
+      </section>
 
-				<div className="container-shell" style={{ position: 'relative', zIndex: 2 }}>
-					<motion.div
-						initial={{ opacity: 0, y: 16 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.55 }}
-						style={{
-							display: 'inline-flex',
-							alignItems: 'center',
-							gap: '0.45rem',
-							border: '1px solid var(--border)',
-							borderRadius: '999px',
-							padding: '0.4rem 0.82rem',
-							marginBottom: '1.35rem',
-							background: 'rgba(10, 22, 40, 0.65)',
-							color: 'var(--text-secondary)',
-						}}
-					>
-						<Zap size={15} color="var(--accent-primary)" />
-						India&apos;s Smartest EV Network
-					</motion.div>
+      <section id="featured-stations" className="section-spacing home-section home-featured">
+        <div className="container-shell">
+          <div className="section-heading-row">
+            <div>
+              <p className="home-kicker">Featured stations</p>
+              <h2 className="section-title">Reliable stops with live charger signals.</h2>
+            </div>
+            <Link to="/map" style={{ textDecoration: 'none' }}>
+              <Button variant="ghost" rightIcon={<ArrowRight size={15} />}>
+                View all
+              </Button>
+            </Link>
+          </div>
 
-					<SplitText
-						text="Find Your Charge"
-						delay={0.2}
-						className="glow-text"
-						as="h1"
-					/>
+          <div className="home-station-strip">
+            {featuredStations.map((station, index) => (
+              <motion.div
+                key={station?._id || index}
+                initial={{ opacity: 0, y: 18 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: Math.min(index * 0.05, 0.3), duration: 0.3 }}
+              >
+                <StationCard station={station} variant="full" />
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-					<p
-						style={{
-							marginTop: '1.1rem',
-							maxWidth: 650,
-							color: 'var(--text-secondary)',
-							fontSize: 'clamp(1rem, 2.2vw, 1.22rem)',
-						}}
-					>
-						Discover 1000+ charging stations near you. Real-time availability. Zero range anxiety.
-					</p>
+      <section id="about" className="section-spacing home-section">
+        <div className="container-shell home-map-section">
+          <div>
+            <p className="home-kicker">Map preview</p>
+            <h2 className="section-title">Dark map, glowing context, less guessing.</h2>
+            <p className="section-copy">
+              ElectroMap keeps live status, station metadata, ratings, and directions close to the map canvas,
+              so drivers can decide in seconds.
+            </p>
+            <div className="home-proof-list">
+              <span>
+                <Zap size={16} />
+                Cyan pins for available chargers
+              </span>
+              <span>
+                <ShieldCheck size={16} />
+                Verified station details
+              </span>
+              <span>
+                <Compass size={16} />
+                Route-aware discovery
+              </span>
+            </div>
+          </div>
+          <MiniMapPreview />
+        </div>
+      </section>
 
-					<div
-						style={{
-							marginTop: '1.9rem',
-							display: 'flex',
-							flexWrap: 'wrap',
-							gap: '0.72rem',
-						}}
-					>
-						<Link to="/map" style={{ textDecoration: 'none' }}>
-							<Button size="lg" rightIcon={<ArrowRight size={17} />}>
-								Explore Map
-							</Button>
-						</Link>
-						<a href="#how-it-works" style={{ textDecoration: 'none' }}>
-							<Button variant="ghost" size="lg" rightIcon={<ArrowRight size={17} />}>
-								How It Works
-							</Button>
-						</a>
-					</div>
+      <section id="pricing" className="section-spacing home-section home-pricing">
+        <div className="container-shell home-final-cta">
+          <div>
+            <p className="home-kicker">Pricing</p>
+            <h2 className="section-title">Find the right charger before you pay.</h2>
+            <p className="section-copy">
+              Station pages surface per-kWh rates, session fees, amenities, and recent reviews before you commit.
+            </p>
+          </div>
+          <div className="home-pricing-panel glass-card">
+            <span>
+              <BatteryCharging size={18} />
+              DC fast rates
+            </span>
+            <strong className="mono-data">from INR 15/kWh</strong>
+            <Link to="/map" style={{ textDecoration: 'none' }}>
+              <Button rightIcon={<ArrowRight size={15} />} style={{ color: '#03131b' }}>
+                Open Map
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
 
-					<div
-						style={{
-							marginTop: '1.5rem',
-							display: 'flex',
-							alignItems: 'center',
-							gap: '0.75rem',
-							flexWrap: 'wrap',
-						}}
-					>
-						<button
-							type="button"
-							onClick={requestLocation}
-							className="chip focus-ring"
-							style={{
-								border: '1px solid var(--border)',
-								background: 'rgba(10, 22, 40, 0.65)',
-								color: 'var(--text-secondary)',
-							}}
-						>
-							<LocateFixed size={14} />
-							{locating ? 'Detecting location...' : 'Use my location'}
-						</button>
-						<span className="chip mono-data">{locationLabel}</span>
-						{locationError ? <span className="chip status-offline">{locationError}</span> : null}
-					</div>
+      <Footer />
 
-					<div
-						style={{
-							marginTop: '2.4rem',
-							display: 'flex',
-							flexWrap: 'wrap',
-							gap: '1.25rem',
-							color: 'var(--text-secondary)',
-						}}
-					>
-						{heroStats.map((item) => (
-							<div
-								key={item.label}
-								style={{
-									borderLeft: '2px solid rgba(255, 255, 255, 0.34)',
-									paddingLeft: '0.72rem',
-								}}
-							>
-								<div style={{ fontSize: '1.26rem', color: 'var(--text-primary)' }}>
-									<CountUp value={item.value} suffix={item.suffix} />
-								</div>
-								<span style={{ fontSize: '0.9rem' }}>{item.label}</span>
-							</div>
-						))}
-					</div>
-				</div>
+      <style>
+        {`
+          .home-hero {
+            position: relative;
+            min-height: 100svh;
+            display: grid;
+            align-items: center;
+            overflow: hidden;
+            background-color: var(--bg-deep);
+            padding: 6rem 1rem 18rem;
+          }
 
-				<motion.a
-					href="#live-map"
-					aria-label="Scroll to map preview"
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					transition={{ delay: 1.2 }}
-					style={{
-						position: 'absolute',
-						left: '50%',
-						bottom: '1.4rem',
-						transform: 'translateX(-50%)',
-						color: 'var(--text-secondary)',
-					}}
-				>
-					<ChevronDown style={{ animation: 'soft-bounce 1.5s ease infinite' }} />
-				</motion.a>
-			</section>
+          .home-hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+              radial-gradient(circle at 52% 16%, rgba(24, 204, 252, 0.18), transparent 25rem),
+              radial-gradient(circle at 78% 10%, rgba(174, 72, 255, 0.14), transparent 20rem),
+              linear-gradient(180deg, rgba(11, 18, 32, 0.18), rgba(11, 18, 32, 0.76));
+            pointer-events: none;
+            z-index: 1;
+          }
 
-			<section id="live-map" className="section-spacing">
-				<div className="container-shell" style={{ display: 'grid', gap: '1.6rem' }}>
-					<motion.h2 className="section-title" initial="hidden" whileInView="show" viewport={{ once: true }} variants={riseInView}>
-						<GradientText>Stations Near You</GradientText>
-					</motion.h2>
+          .home-comet-beams {
+            z-index: 0;
+            opacity: 0.96;
+            transform: scale(1.7) translateY(-6%);
+            transform-origin: center;
+            filter: drop-shadow(0 0 20px rgba(24, 204, 252, 0.14));
+          }
 
-					<div className="home-map-grid">
-						<MiniMapPreview />
+          .home-hero-content {
+            position: relative;
+            z-index: 3;
+            width: min(900px, calc(100% - 1rem));
+            margin: 0 auto;
+            text-align: center;
+            display: grid;
+            place-items: center;
+          }
 
-						<div className="home-map-metrics">
-							{statsLoading ? (
-								Array.from({ length: 3 }).map((_, index) => (
-									<div
-										key={`loading-${index}`}
-										className="glass-card skeleton home-metric-card"
-									/>
-								))
-							) : (
-								<>
-									<Card className="glass-card home-metric-card" hover={false}>
-										<div style={{ padding: '1rem' }}>
-											<p style={{ color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Active Stations</p>
-											<p style={{ fontSize: '1.6rem' }} className="mono-data glow-text">
-												<CountUp value={networkStats.activeStations} suffix="+" />
-											</p>
-										</div>
-									</Card>
-									<Card className="glass-card home-metric-card" hover={false}>
-										<div style={{ padding: '1rem' }}>
-											<p style={{ color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-												Available Chargers
-											</p>
-											<p style={{ fontSize: '1.6rem' }} className="mono-data glow-text">
-												<CountUp value={networkStats.availableChargers} />
-											</p>
-										</div>
-									</Card>
-									<Card className="glass-card home-metric-card" hover={false}>
-										<div style={{ padding: '1rem' }}>
-											<p style={{ color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Avg Wait Time</p>
-											<p style={{ fontSize: '1.6rem' }} className="mono-data glow-text">
-												<CountUp value={networkStats.avgWaitTime} suffix=" min" />
-											</p>
-										</div>
-									</Card>
-									{statsError ? (
-										<p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{statsError}</p>
-									) : null}
-								</>
-							)}
-						</div>
-					</div>
-				</div>
-			</section>
+          .home-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            color: var(--cyan);
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-bottom: 0.9rem;
+          }
 
-			<section id="how-it-works" className="section-spacing">
-				<div className="container-shell">
-					<motion.h2 className="section-title" initial="hidden" whileInView="show" viewport={{ once: true }} variants={riseInView}>
-						Three Steps to Full Battery
-					</motion.h2>
+          .home-hero h1 {
+            display: grid;
+            gap: 0.08em;
+            font-size: clamp(3.15rem, 8vw, 5.7rem);
+            line-height: 0.94;
+            letter-spacing: 0;
+          }
 
-					<motion.div
-						initial="hidden"
-						whileInView="show"
-						viewport={{ once: true }}
-						variants={{
-							hidden: {},
-							show: {
-								transition: {
-									staggerChildren: 0.12,
-								},
-							},
-						}}
-						style={{
-							marginTop: '1.2rem',
-							display: 'grid',
-							gap: '1rem',
-							gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-						}}
-					>
-						{stepCards.map((step) => {
-							const StepIcon = step.icon
+          .home-hero h1 span:last-child {
+            color: var(--cyan);
+            text-shadow: var(--glow-cyan);
+          }
 
-							return (
-								<motion.div key={step.title} variants={riseInView}>
-									<TiltedCard>
-										<Card className="glass-card neon-border" style={{ width: '100%' }}>
-											<div style={{ padding: '1.1rem' }}>
-												<span className="icon-badge" aria-hidden="true">
-													<StepIcon size={17} />
-												</span>
-												<h3 style={{ marginTop: '0.8rem', fontSize: '1.15rem' }}>{step.title}</h3>
-												<p style={{ marginTop: '0.5rem', color: 'var(--text-secondary)' }}>
-													{step.description}
-												</p>
-											</div>
-										</Card>
-									</TiltedCard>
-								</motion.div>
-							)
-						})}
-					</motion.div>
-				</div>
-			</section>
+          .home-hero-copy {
+            max-width: 660px;
+            margin: 1.2rem auto 0;
+            color: var(--text-muted);
+            font-size: clamp(1rem, 1.7vw, 1.16rem);
+          }
 
-			<section className="section-spacing grid-bg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-				<div className="container-shell">
-					<motion.h2 className="section-title" initial="hidden" whileInView="show" viewport={{ once: true }} variants={riseInView}>
-						All Charger Types Supported
-					</motion.h2>
+          .home-hero-actions,
+          .home-location-row {
+            margin-top: 1.7rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.75rem;
+          }
 
-					<div
-						style={{
-							marginTop: '1.2rem',
-							display: 'grid',
-							gap: '1rem',
-							gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-						}}
-					>
-						{chargerSupport.map((item) => {
-							const ChargerIcon = item.icon
+          .home-location-row {
+            margin-top: 1rem;
+          }
 
-							return (
-								<StarBorder key={item.title}>
-									<div style={{ padding: '1.1rem', height: '100%' }}>
-										<span className="icon-badge" aria-hidden="true">
-											<ChargerIcon size={17} />
-										</span>
-										<h3 style={{ marginTop: '0.75rem', fontSize: '1.1rem' }}>{item.title}</h3>
-										<p className="mono-data" style={{ marginTop: '0.4rem', color: 'var(--accent-primary)' }}>
-											{item.power}
-										</p>
-										<p style={{ marginTop: '0.52rem', color: 'var(--text-secondary)' }}>{item.description}</p>
-									</div>
-								</StarBorder>
-							)
-						})}
-					</div>
-				</div>
-			</section>
+          .home-sky-orbits span {
+            position: absolute;
+            left: var(--x);
+            top: var(--y);
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: var(--cyan);
+            box-shadow: var(--glow-cyan);
+            opacity: 0.75;
+            animation: float 4.5s ease-in-out infinite;
+            animation-delay: var(--d);
+            z-index: 2;
+          }
 
-			<section className="section-spacing">
-				<div
-					className="container-shell home-why-grid"
-					style={{
-						display: 'grid',
-						gap: '1.2rem',
-						gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)',
-						alignItems: 'center',
-					}}
-				>
-					<div>
-						<h2 className="section-title">Why ElectroMap</h2>
-						<p className="section-copy" style={{ marginBottom: '1.05rem' }}>
-							Built for fast-moving EV drivers who need clear, trustworthy station intelligence.
-						</p>
+          .home-stats-band {
+            border-top: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+            box-shadow: var(--glow-cyan);
+            background: rgba(15, 30, 48, 0.72);
+          }
 
-						<div style={{ display: 'grid', gap: '0.68rem' }}>
-							{features.map((feature) => {
-								const FeatureIcon = feature.icon
+          .home-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+          }
 
-								return (
-									<div
-										key={feature.title}
-										className="glass-card"
-										style={{
-											borderRadius: '12px',
-											padding: '0.8rem',
-											display: 'flex',
-											gap: '0.66rem',
-											alignItems: 'flex-start',
-										}}
-									>
-										<span className="icon-badge" aria-hidden="true">
-											<FeatureIcon size={15} />
-										</span>
-										<div>
-											<h3 style={{ fontSize: '1rem' }}>{feature.title}</h3>
-											<p style={{ color: 'var(--text-secondary)', marginTop: '0.26rem' }}>{feature.text}</p>
-										</div>
-									</div>
-								)
-							})}
-						</div>
-					</div>
+          .home-stats-grid div {
+            padding: 1.2rem;
+            display: grid;
+            justify-items: center;
+            gap: 0.18rem;
+            border-left: 1px solid var(--border-subtle);
+          }
 
-					<EVVisual />
-				</div>
-			</section>
+          .home-stats-grid div:last-child {
+            border-right: 1px solid var(--border-subtle);
+          }
 
-			<section className="section-spacing" style={{ paddingTop: 0 }}>
-				<div className="container-shell">
-					<div
-						className="glass-card"
-						style={{
-							position: 'relative',
-							overflow: 'hidden',
-							borderRadius: 'var(--radius-lg)',
-							padding: 'clamp(1.4rem, 4vw, 2.5rem)',
-							background:
-								'linear-gradient(120deg, rgba(255, 255, 255, 0.25), rgba(14, 63, 107, 0.56), rgba(255, 51, 51, 0.32))',
-						}}
-					>
-						<div className="noise-overlay" aria-hidden="true" />
+          .home-stats-grid strong {
+            font-size: clamp(1.35rem, 3vw, 2rem);
+            color: var(--text-primary);
+          }
 
-						<div
-							style={{
-								position: 'relative',
-								zIndex: 1,
-								display: 'flex',
-								alignItems: 'center',
-								justifyContent: 'space-between',
-								gap: '1rem',
-								flexWrap: 'wrap',
-							}}
-						>
-							<div>
-								<h2 className="section-title" style={{ margin: 0 }}>
-									Ready to go electric?
-								</h2>
-								<p style={{ marginTop: '0.45rem', color: 'var(--text-secondary)' }}>
-									Open the map and locate a charger in seconds.
-								</p>
-							</div>
+          .home-stats-grid span {
+            color: var(--text-muted);
+          }
 
-							<Link to="/map" style={{ textDecoration: 'none' }}>
-								<Button size="lg" rightIcon={<ArrowRight size={18} />}>
-									Open Map
-								</Button>
-							</Link>
-						</div>
-					</div>
-				</div>
-			</section>
+          .home-section {
+            position: relative;
+            background: linear-gradient(180deg, rgba(11, 18, 32, 0.94), rgba(13, 34, 51, 0.72));
+          }
 
-			<Footer />
+          .section-heading-row {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+          }
 
-			<style>
-				{`
-					.home-hero-shapegrid {
-						mask-image: radial-gradient(circle at center, black 45%, transparent 100%);
-						-webkit-mask-image: radial-gradient(circle at center, black 45%, transparent 100%);
-					}
+          .home-steps {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1rem;
+          }
 
-					.home-map-grid {
-						display: grid;
-						grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.72fr);
-						gap: 1rem;
-						align-items: stretch;
-					}
+          .home-steps::before {
+            content: '';
+            position: absolute;
+            left: 12%;
+            right: 12%;
+            top: 3.4rem;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-subtle), transparent);
+          }
 
-					.home-map-grid .map-vignette {
-						min-height: 360px !important;
-					}
+          .home-steps article {
+            position: relative;
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            background: rgba(15, 30, 48, 0.8);
+            padding: 1rem;
+            display: grid;
+            gap: 0.62rem;
+            transition: all 0.2s ease;
+          }
 
-					.home-map-metrics {
-						display: grid;
-						grid-template-rows: repeat(3, minmax(0, 1fr));
-						gap: 0.8rem;
-						min-height: 360px;
-					}
+          .home-steps article:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--glow-cyan);
+          }
 
-					.home-metric-card {
-						min-height: 100px;
-						display: grid;
-						align-items: center;
-					}
+          .home-step-number {
+            color: var(--slate);
+            font-size: 0.82rem;
+          }
 
-					main h1 {
-						font-size: clamp(2.5rem, 9vw, 6rem);
-						line-height: 0.95;
-						letter-spacing: -0.03em;
-						max-width: 11ch;
-					}
+          .home-steps h3 {
+            font-size: 1.06rem;
+          }
 
-					@media (max-width: 1180px) {
-						.home-map-grid {
-							grid-template-columns: minmax(0, 1fr) minmax(220px, 0.75fr);
-						}
-					}
+          .home-steps p {
+            color: var(--text-muted);
+          }
 
-					@media (max-width: 960px) {
-						.home-map-grid,
-						.home-why-grid {
-							grid-template-columns: 1fr !important;
-						}
+          .home-featured {
+            background: var(--bg-mid);
+          }
 
-						.home-map-grid .map-vignette {
-							min-height: 300px !important;
-						}
+          .home-station-strip {
+            display: grid;
+            grid-auto-flow: column;
+            grid-auto-columns: minmax(290px, 31%);
+            gap: 1rem;
+            overflow-x: auto;
+            padding: 0.2rem 0.2rem 1rem;
+            scroll-snap-type: x mandatory;
+          }
 
-						.home-map-metrics {
-							min-height: 0;
-							grid-template-rows: none;
-							grid-auto-rows: minmax(88px, auto);
-						}
-					}
-				`}
-			</style>
-		</PageWrapper>
-	)
+          .home-station-strip > div {
+            scroll-snap-align: start;
+          }
+
+          .home-map-section {
+            display: grid;
+            grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+            gap: clamp(1.3rem, 4vw, 3rem);
+            align-items: center;
+          }
+
+          .home-proof-list {
+            display: grid;
+            gap: 0.65rem;
+            margin-top: 1.2rem;
+            color: var(--text-primary);
+          }
+
+          .home-proof-list span {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+          }
+
+          .home-proof-list svg {
+            color: var(--cyan);
+          }
+
+          .home-static-map {
+            position: relative;
+            min-height: clamp(300px, 37vw, 464px);
+            overflow: hidden;
+            border-radius: 8px;
+            background:
+              linear-gradient(135deg, rgba(0, 232, 204, 0.08), transparent 34%),
+              radial-gradient(circle at 70% 30%, rgba(253, 122, 1, 0.14), transparent 22rem),
+              #07131f;
+          }
+
+          .home-map-lines {
+            position: absolute;
+            inset: 0;
+            background-image:
+              linear-gradient(36deg, transparent 47%, rgba(88, 129, 151, 0.28) 48%, rgba(88, 129, 151, 0.28) 52%, transparent 53%),
+              linear-gradient(118deg, transparent 47%, rgba(0, 232, 204, 0.18) 48%, rgba(0, 232, 204, 0.18) 52%, transparent 53%),
+              radial-gradient(circle at center, rgba(0, 232, 204, 0.14) 1px, transparent 1px);
+            background-size: 220px 130px, 280px 160px, 34px 34px;
+            opacity: 0.78;
+          }
+
+          .home-map-pin {
+            position: absolute;
+            width: 38px;
+            height: 38px;
+            border-radius: 999px;
+            display: grid;
+            place-items: center;
+            transform: translate(-50%, -50%);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: #04131b;
+            border: 1px solid rgba(230, 242, 239, 0.6);
+            animation: pulse-glow 2.4s ease-in-out infinite;
+          }
+
+          .home-map-pin.available {
+            background: var(--cyan);
+          }
+
+          .home-map-pin.occupied {
+            background: var(--amber);
+          }
+
+          .home-map-pin.offline {
+            background: var(--slate);
+            color: var(--text-primary);
+          }
+
+          .home-map-cta {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            min-height: 48px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0 1rem;
+            border-radius: 999px;
+            background: rgba(15, 30, 48, 0.84);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            text-decoration: none;
+            backdrop-filter: blur(14px);
+          }
+
+          .home-pricing {
+            background: linear-gradient(180deg, rgba(13, 34, 51, 0.72), var(--bg-deep));
+          }
+
+          .home-final-cta {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+            gap: 1rem;
+            align-items: center;
+          }
+
+          .home-pricing-panel {
+            padding: 1rem;
+            display: grid;
+            gap: 0.8rem;
+          }
+
+          .home-pricing-panel span {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-muted);
+          }
+
+          .home-pricing-panel strong {
+            font-size: 1.2rem;
+          }
+
+          @media (max-width: 900px) {
+            .home-hero {
+              padding-bottom: 13rem;
+            }
+
+            .home-stats-grid,
+            .home-steps,
+            .home-map-section,
+            .home-final-cta {
+              grid-template-columns: 1fr;
+            }
+
+            .home-steps::before {
+              display: none;
+            }
+
+            .home-station-strip {
+              grid-auto-columns: minmax(280px, 84%);
+            }
+
+            .section-heading-row {
+              align-items: start;
+              flex-direction: column;
+            }
+          }
+
+          @media (max-width: 620px) {
+            .home-hero {
+              padding-top: 5.5rem;
+              padding-bottom: 10rem;
+              align-items: start;
+            }
+
+            .home-hero-content {
+              text-align: left;
+              justify-items: start;
+            }
+
+            .home-hero-actions,
+            .home-location-row {
+              justify-content: flex-start;
+            }
+
+            .home-stats-grid div {
+              border: none;
+              border-top: 1px solid var(--border-subtle);
+            }
+          }
+        `}
+      </style>
+    </PageWrapper>
+  )
 }
 
 export default Home

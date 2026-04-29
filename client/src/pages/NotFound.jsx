@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion'
-import { Compass, Home } from 'lucide-react'
+import { Home } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { Navbar, PageWrapper } from '../components/layout'
+import { LandscapeScene } from '../components/scene'
 import { Button } from '../components/ui'
 
 function NotFound() {
@@ -11,52 +12,48 @@ function NotFound() {
       <Navbar />
 
       <section
-        className="container-shell"
+        className="not-found-page sky-dot-grid"
         style={{
-          minHeight: '100vh',
+          position: 'relative',
+          minHeight: '100svh',
           paddingTop: '5rem',
           paddingBottom: '2rem',
           display: 'grid',
           placeItems: 'center',
+          overflow: 'hidden',
         }}
       >
         <div
-          className="glass-card"
           style={{
             width: 'min(640px, 100%)',
-            borderRadius: '16px',
             padding: '1.2rem',
             display: 'grid',
             gap: '0.8rem',
             textAlign: 'center',
+            position: 'relative',
+            zIndex: 2,
           }}
         >
-          <motion.div
-            initial={{ rotate: -8, scale: 0.94, opacity: 0.7 }}
-            animate={{ rotate: 8, scale: 1.04, opacity: 1 }}
-            transition={{
-              repeat: Infinity,
-              repeatType: 'reverse',
-              duration: 1.6,
-              ease: 'easeInOut',
-            }}
-            style={{ justifySelf: 'center' }}
+          <motion.p
+            className="mono-data"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{ color: 'var(--cyan)' }}
           >
-            <Compass size={64} color="var(--accent-primary)" />
-          </motion.div>
-
-          <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', lineHeight: 1.05 }}>
             404
+          </motion.p>
+          <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', lineHeight: 1.05 }}>
+            Station not found
           </h1>
           <p style={{ color: 'var(--text-secondary)' }}>
-            The page you requested could not be found. Let’s get you back to charging
-            routes.
+            The route went quiet. Head back to the map and pick up a live charging signal.
           </p>
 
-          <Link to="/" className="focus-ring" style={{ textDecoration: 'none', justifySelf: 'center' }}>
-            <Button leftIcon={<Home size={14} />}>Go Home</Button>
+          <Link to="/map" className="focus-ring" style={{ textDecoration: 'none', justifySelf: 'center' }}>
+            <Button leftIcon={<Home size={14} />}>Back to Map</Button>
           </Link>
         </div>
+        <LandscapeScene />
       </section>
     </PageWrapper>
   )

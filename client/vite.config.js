@@ -21,4 +21,41 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return undefined
+          }
+
+          if (id.includes('maplibre-gl') || id.includes('supercluster')) {
+            return 'mapbox'
+          }
+
+          if (id.includes('framer-motion')) {
+            return 'framer'
+          }
+
+          if (id.includes('recharts')) {
+            return 'charts'
+          }
+
+          if (id.includes('socket.io-client') || id.includes('engine.io-client')) {
+            return 'socket'
+          }
+
+          if (
+            id.includes('three') ||
+            id.includes('@react-three/fiber') ||
+            id.includes('@react-three/postprocessing')
+          ) {
+            return 'three'
+          }
+
+          return undefined
+        },
+      },
+    },
+  },
 })

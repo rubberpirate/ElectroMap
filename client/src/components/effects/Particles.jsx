@@ -3,9 +3,9 @@ import { useEffect, useRef } from 'react'
 import { cn } from '../../utils/cn'
 
 const defaultPalette = [
-  'rgba(255, 255, 255, 0.62)',
-  'rgba(255, 51, 51, 0.58)',
-  'rgba(120, 220, 255, 0.38)',
+  'rgba(230, 242, 239, 0.62)',
+  'rgba(0, 232, 204, 0.58)',
+  'rgba(253, 122, 1, 0.38)',
 ]
 
 function buildParticles(width, height, count) {

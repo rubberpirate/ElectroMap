@@ -1,4 +1,6 @@
 import { MapPin, Star, Zap } from 'lucide-react'
+import { memo } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import { Badge, Card } from '../ui'
 
@@ -39,6 +41,7 @@ function StationCard({
   onMouseEnter,
   onMouseLeave,
 }) {
+  const navigate = useNavigate()
   const totalChargers = Number(station?.totalChargers) || 0
   const availableChargers = Number(station?.availableChargers) || 0
   const rating = Number(station?.rating) || 0
@@ -47,6 +50,10 @@ function StationCard({
   const stationName = station?.stationName || 'Unnamed station'
   const stationImage =
     Array.isArray(station?.images) && station.images.length ? station.images[0] : ''
+  const optimizedStationImage =
+    stationImage && stationImage.includes('res.cloudinary.com') && !stationImage.includes('f_auto')
+      ? stationImage.replace('/upload/', '/upload/f_auto,q_auto/')
+      : stationImage
   const imageFallbackInitials = getInitials(stationName)
   const locationLabel = station?.city
     ? station?.state
@@ -70,7 +77,7 @@ function StationCard({
       <button
         type="button"
         aria-label={`Open station ${stationName}`}
-        onClick={onClick}
+        onClick={onClick || (() => station?._id && navigate(`/station/${station._id}`))}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         className="focus-ring"
@@ -84,6 +91,7 @@ function StationCard({
           display: 'grid',
           gap: isFull ? '0.75rem' : '0.65rem',
           cursor: 'pointer',
+          transition: 'all 0.2s ease',
         }}
       >
         {isFull ? (
@@ -96,10 +104,11 @@ function StationCard({
               position: 'relative',
             }}
           >
-            {stationImage ? (
+            {optimizedStationImage ? (
               <img
-                src={stationImage}
+                src={optimizedStationImage}
                 alt={stationName}
+                loading="lazy"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             ) : (
@@ -110,7 +119,7 @@ function StationCard({
                   display: 'grid',
                   placeItems: 'center',
                   background:
-                    'linear-gradient(130deg, rgba(255, 255, 255, 0.18), rgba(255, 51, 51, 0.2))',
+                    'linear-gradient(130deg, rgba(0, 232, 204, 0.16), rgba(253, 122, 1, 0.18))',
                   fontFamily: 'Syne, sans-serif',
                   fontSize: '1.45rem',
                   letterSpacing: '0.04em',
@@ -128,7 +137,7 @@ function StationCard({
                 padding: '0.16rem 0.5rem',
                 border: '1px solid rgba(232, 244, 248, 0.32)',
                 background: 'rgba(5, 10, 14, 0.66)',
-                color: station?.isOpen ? 'var(--accent-green)' : 'var(--accent-red)',
+                color: station?.isOpen ? 'var(--green-glow)' : 'var(--red-alert)',
                 fontSize: '0.74rem',
                 fontWeight: 600,
               }}
@@ -170,7 +179,7 @@ function StationCard({
           </span>
 
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-            <Zap size={14} color="var(--accent-primary)" />
+            <Zap size={14} color="var(--cyan)" />
             {availableChargers}/{totalChargers} available
           </span>
 
@@ -191,4 +200,4 @@ function StationCard({
   )
 }
 
-export default StationCard
+export default memo(StationCard)

@@ -27,8 +27,8 @@ function AppLoadingScreen() {
             width: 42,
             height: 42,
             borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.45)',
-            background: 'linear-gradient(130deg, rgba(255, 255, 255, 0.35), rgba(255, 51, 51, 0.25))',
+            border: '1px solid rgba(0, 232, 204, 0.42)',
+            background: 'linear-gradient(130deg, rgba(0, 232, 204, 0.28), rgba(253, 122, 1, 0.18))',
             display: 'grid',
             placeItems: 'center',
             boxShadow: 'var(--glow-cyan)',
@@ -44,7 +44,9 @@ function AppLoadingScreen() {
             />
           </svg>
         </span>
-        <strong>ElectroMap</strong>
+        <strong style={{ fontFamily: 'Syne, sans-serif' }}>
+          <span style={{ color: 'var(--cyan)' }}>E</span>LECTROMAP
+        </strong>
         <Spinner />
       </div>
     </div>

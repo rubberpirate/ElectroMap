@@ -601,7 +601,8 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
             style={{
               position: 'fixed',
               inset: 0,
-              background: 'rgba(3, 8, 14, 0.55)',
+              background: 'rgba(3, 8, 14, 0.62)',
+              backdropFilter: 'blur(4px)',
               zIndex: 44,
             }}
             onClick={onClose}
@@ -619,9 +620,9 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
               top: 0,
               right: 0,
               bottom: 0,
-              width: 'min(560px, 96vw)',
+              width: 'min(420px, 96vw)',
               borderRadius: 0,
-              borderLeft: '1px solid var(--border)',
+              borderLeft: '1px solid var(--border-subtle)',
               zIndex: 45,
               display: 'grid',
               gridTemplateRows: 'auto minmax(0, 1fr)',
@@ -634,7 +635,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                 justifyContent: 'space-between',
                 gap: '0.8rem',
                 padding: '0.9rem 1rem',
-                borderBottom: '1px solid var(--border)',
+                borderBottom: '1px solid var(--border-subtle)',
               }}
             >
               <h2 style={{ fontSize: '1.2rem' }}>Station Details</h2>
@@ -647,7 +648,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                   width: 36,
                   height: 36,
                   borderRadius: '10px',
-                  border: '1px solid var(--border)',
+                  border: '1px solid var(--border-subtle)',
                   background: 'rgba(10, 22, 40, 0.7)',
                   color: 'var(--text-secondary)',
                 }}
@@ -664,7 +665,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
               ) : null}
 
               {!isLoading && error ? (
-                <div className="glass-card" style={{ padding: '1rem', borderRadius: '12px', color: 'var(--accent-red)' }}>
+                <div className="glass-card" style={{ padding: '1rem', borderRadius: '12px', color: 'var(--red-alert)' }}>
                   {error}
                 </div>
               ) : null}
@@ -676,6 +677,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                       <img
                         src={currentImage}
                         alt={station.stationName}
+                        loading="lazy"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                       <div
@@ -1148,7 +1150,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
                   max-height: 86vh;
                   border-radius: 16px 16px 0 0 !important;
                   border-left: none !important;
-                  border-top: 1px solid var(--border);
+                  border-top: 1px solid var(--border-subtle);
                 }
               }
 
@@ -1172,7 +1174,7 @@ function StationDrawer({ stationId, isOpen, onClose, socket, userLocation, onNav
               }
 
               .station-drawer-charger-row {
-                border: 1px solid rgba(255, 255, 255, 0.2);
+                border: 1px solid var(--border-subtle);
                 border-radius: 10px;
                 padding: 0.55rem;
                 display: grid;

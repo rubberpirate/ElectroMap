@@ -60,9 +60,9 @@ class ErrorBoundary extends Component {
             onClick={this.handleReload}
             style={{
               minHeight: 42,
-              borderRadius: '2px',
-              border: '1px solid rgba(255, 51, 51, 0.52)',
-              background: 'rgba(24, 24, 24, 0.95)',
+              borderRadius: '999px',
+              border: '1px solid rgba(0, 232, 204, 0.42)',
+              background: 'rgba(15, 30, 48, 0.95)',
               color: 'var(--text-primary)',
               width: 'fit-content',
               paddingInline: '0.9rem',

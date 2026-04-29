@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import {
 	Bookmark,
+	Clock3,
 	ImagePlus,
 	MapPinned,
 	Settings,
@@ -65,7 +66,7 @@ function Dashboard() {
 	const unsaveStation = useStationStore((state) => state.unsaveStation)
 	const setSavedStationIds = useStationStore((state) => state.setSavedStations)
 
-	const [activeTab, setActiveTab] = useState('saved')
+	const [activeTab, setActiveTab] = useState('overview')
 	const [savedStations, setSavedStations] = useState([])
 	const [reviews, setReviews] = useState([])
 	const [isSavedLoading, setIsSavedLoading] = useState(true)
@@ -157,6 +158,10 @@ function Dashboard() {
 	const selectedAvatarSource = avatarPreview || user?.avatar || ''
 
 	const currentTabLabel = useMemo(() => {
+		if (activeTab === 'overview') {
+			return 'Overview'
+		}
+
 		if (activeTab === 'saved') {
 			return 'Saved Stations'
 		}
@@ -383,7 +388,8 @@ function Dashboard() {
 					</div>
 
 					<nav style={{ display: 'grid', gap: '0.45rem' }}>
-						{[
+							{[
+							{ id: 'overview', icon: Clock3, label: 'Overview' },
 							{ id: 'saved', icon: Bookmark, label: 'Saved Stations' },
 							{ id: 'reviews', icon: Star, label: 'My Reviews' },
 							{ id: 'settings', icon: UserRound, label: 'Profile Settings' },
@@ -476,6 +482,59 @@ function Dashboard() {
 							</Button>
 						) : null}
 					</header>
+
+					{activeTab === 'overview' ? (
+						<motion.div
+							initial={{ opacity: 0, y: 12 }}
+							animate={{ opacity: 1, y: 0 }}
+							style={{ display: 'grid', gap: '1rem' }}
+						>
+							<div>
+								<h2 style={{ fontSize: 'clamp(1.7rem, 4vw, 2.6rem)' }}>
+									Good evening, {user?.username || 'driver'}
+								</h2>
+								<p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+									Your saved stations, reviews, and account signals are ready.
+								</p>
+							</div>
+
+							<div
+								style={{
+									display: 'grid',
+									gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+									gap: '0.75rem',
+								}}
+							>
+								{[
+									{ label: 'Saved stations', value: savedStations.length },
+									{ label: 'Reviews written', value: reviews.length },
+									{ label: 'Last visited', value: memberSince },
+								].map((item) => (
+									<div key={item.label} className="glass-card" style={{ borderRadius: '14px', padding: '0.9rem' }}>
+										<small style={{ color: 'var(--text-secondary)' }}>{item.label}</small>
+										<strong className="mono-data" style={{ display: 'block', marginTop: '0.35rem', fontSize: '1.35rem' }}>
+											{item.value}
+										</strong>
+									</div>
+								))}
+							</div>
+
+							<div className="glass-card" style={{ borderRadius: '14px', padding: '0.9rem', display: 'grid', gap: '0.55rem' }}>
+								<strong>Recent activity</strong>
+								{reviews.slice(0, 3).map((review) => (
+									<div key={review?._id} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', color: 'var(--text-secondary)' }}>
+										<span>{review?.stationId?.stationName || 'Station review'}</span>
+										<span className="mono-data">{formatDate(review?.createdAt)}</span>
+									</div>
+								))}
+								{!reviews.length ? (
+									<p style={{ color: 'var(--text-secondary)' }}>
+										No recent activity yet. Save a station or write a review to start your trail.
+									</p>
+								) : null}
+							</div>
+						</motion.div>
+					) : null}
 
 					{activeTab === 'saved' ? (
 						<div>

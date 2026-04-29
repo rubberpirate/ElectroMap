@@ -1,352 +1,327 @@
-import { Eye, EyeOff, Lock, Mail, Sparkles } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 
-import { Particles } from '../components/effects'
 import { PageWrapper } from '../components/layout'
+import { LandscapeScene } from '../components/scene'
 import { Button, Input } from '../components/ui'
 import useAuth from '../hooks/useAuth'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const validateForm = (values) => {
-	const errors = {}
+  const errors = {}
 
-	if (!values.email.trim()) {
-		errors.email = 'Email is required.'
-	} else if (!emailPattern.test(values.email.trim())) {
-		errors.email = 'Enter a valid email address.'
-	}
+  if (!values.email.trim()) {
+    errors.email = 'Email is required.'
+  } else if (!emailPattern.test(values.email.trim())) {
+    errors.email = 'Enter a valid email address.'
+  }
 
-	if (!values.password) {
-		errors.password = 'Password is required.'
-	}
+  if (!values.password) {
+    errors.password = 'Password is required.'
+  }
 
-	return errors
+  return errors
 }
 
 function Login() {
-	const [searchParams] = useSearchParams()
-	const [form, setForm] = useState({
-		email: '',
-		password: '',
-		remember: true,
-	})
-	const [fieldErrors, setFieldErrors] = useState({})
-	const [showPassword, setShowPassword] = useState(false)
+  const [searchParams] = useSearchParams()
+  const [form, setForm] = useState({
+    email: '',
+    password: '',
+    remember: true,
+  })
+  const [fieldErrors, setFieldErrors] = useState({})
+  const [showPassword, setShowPassword] = useState(false)
 
-	const navigate = useNavigate()
-	const { login, isLoading, isAuthenticated, error, clearError } = useAuth()
+  const navigate = useNavigate()
+  const { login, isLoading, isAuthenticated, error, clearError } = useAuth()
 
-	const redirectParam = searchParams.get('redirect')
-	const safeRedirect = useMemo(() => {
-		if (!redirectParam || !redirectParam.startsWith('/')) {
-			return '/map'
-		}
+  const redirectParam = searchParams.get('redirect')
+  const safeRedirect = useMemo(() => {
+    if (!redirectParam || !redirectParam.startsWith('/')) {
+      return '/map'
+    }
 
-		return redirectParam
-	}, [redirectParam])
+    return redirectParam
+  }, [redirectParam])
 
-	const registerPath = redirectParam
-		? `/register?redirect=${encodeURIComponent(redirectParam)}`
-		: '/register'
+  const registerPath = redirectParam
+    ? `/register?redirect=${encodeURIComponent(redirectParam)}`
+    : '/register'
 
-	if (isAuthenticated) {
-		return <Navigate to={safeRedirect} replace />
-	}
+  if (isAuthenticated) {
+    return <Navigate to={safeRedirect} replace />
+  }
 
-	const handleChange = (key, value) => {
-		if (error) {
-			clearError?.()
-		}
+  const handleChange = (key, value) => {
+    if (error) {
+      clearError?.()
+    }
 
-		setFieldErrors((current) => ({
-			...current,
-			[key]: undefined,
-			form: undefined,
-		}))
+    setFieldErrors((current) => ({
+      ...current,
+      [key]: undefined,
+      form: undefined,
+    }))
 
-		setForm((current) => ({
-			...current,
-			[key]: value,
-		}))
-	}
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+    }))
+  }
 
-	const handleSubmit = async (event) => {
-		event.preventDefault()
+  const handleSubmit = async (event) => {
+    event.preventDefault()
 
-		const validationErrors = validateForm(form)
-		setFieldErrors(validationErrors)
+    const validationErrors = validateForm(form)
+    setFieldErrors(validationErrors)
 
-		if (Object.keys(validationErrors).length) {
-			return
-		}
+    if (Object.keys(validationErrors).length) {
+      return
+    }
 
-		clearError?.()
+    clearError?.()
 
-		try {
-			await login({
-				email: form.email.trim(),
-				password: form.password,
-			})
+    try {
+      await login({
+        email: form.email.trim(),
+        password: form.password,
+      })
 
-			if (!form.remember) {
-				toast.success('Logged in. Session will end after you close the browser.')
-			}
+      if (!form.remember) {
+        toast.success('Logged in. Session will end after you close the browser.')
+      }
 
-			navigate(safeRedirect, { replace: true })
-		} catch (requestError) {
-			setFieldErrors((current) => ({
-				...current,
-				form:
-					requestError?.response?.data?.message ||
-					requestError?.message ||
-					'Unable to login right now.',
-			}))
-		}
-	}
+      navigate(safeRedirect, { replace: true })
+    } catch (requestError) {
+      setFieldErrors((current) => ({
+        ...current,
+        form:
+          requestError?.response?.data?.message ||
+          requestError?.message ||
+          'Unable to login right now.',
+      }))
+    }
+  }
 
-	return (
-		<PageWrapper title="Login" className="hero-gradient">
-			<section
-				style={{
-					position: 'relative',
-					minHeight: '100vh',
-					display: 'grid',
-					alignItems: 'center',
-					padding: '5rem 1rem 2rem',
-					overflow: 'hidden',
-				}}
-			>
-				<div style={{ position: 'absolute', inset: 0, opacity: 0.22 }}>
-					<Particles count={72} />
-				</div>
+  return (
+    <PageWrapper title="Login" className="hero-gradient">
+      <section className="auth-page sky-dot-grid">
+        <div className="auth-card glass-card">
+          <Link to="/" className="auth-logo focus-ring">
+            <span>E</span>LECTROMAP
+          </Link>
 
-				<div
-					className="container-shell"
-					style={{
-						position: 'relative',
-						zIndex: 2,
-						display: 'grid',
-						gridTemplateColumns: '1.05fr 1fr',
-						gap: '1rem',
-					}}
-				>
-					<div
-						className="glass-card"
-						style={{
-							padding: '1.4rem',
-							borderRadius: 'var(--radius-lg)',
-							display: 'grid',
-							alignContent: 'center',
-							gap: '0.85rem',
-							minHeight: 520,
-						}}
-					>
-						<span
-							className="chip"
-							style={{
-								width: 'fit-content',
-								borderColor: 'rgba(255, 255, 255, 0.4)',
-								background: 'rgba(255, 255, 255, 0.14)',
-								color: 'var(--accent-primary)',
-							}}
-						>
-							<Sparkles size={14} />
-							Welcome back
-						</span>
+          <div>
+            <h1>Login</h1>
+            <p>Access saved stations, reviews, and live charging preferences.</p>
+          </div>
 
-						<h1 style={{ fontSize: 'clamp(2rem, 4vw, 3.4rem)', lineHeight: 1.06 }}>
-							Recharge Your
-							<br />
-							Electric Journey
-						</h1>
+          {fieldErrors.form || error ? (
+            <div className="auth-alert">{fieldErrors.form || error}</div>
+          ) : null}
 
-						<p style={{ color: 'var(--text-secondary)', maxWidth: 480, fontSize: '1.02rem' }}>
-							Discover live charging availability, trusted reviews, and route-ready station
-							insights designed for EV drivers across India.
-						</p>
+          <form onSubmit={handleSubmit} className="auth-form">
+            <Input
+              label="Email"
+              type="email"
+              value={form.email}
+              error={fieldErrors.email}
+              leftIcon={<Mail size={16} />}
+              placeholder="you@example.com"
+              onChange={(event) => handleChange('email', event.target.value)}
+              autoComplete="email"
+            />
 
-						<div
-							className="glass-card"
-							style={{
-								marginTop: '0.75rem',
-								borderRadius: '14px',
-								padding: '0.85rem',
-								borderColor: 'rgba(255, 255, 255, 0.28)',
-							}}
-						>
-							<small style={{ color: 'var(--text-secondary)' }}>Community Trust</small>
-							<p className="mono-data" style={{ marginTop: '0.3rem', fontSize: '1.18rem' }}>
-								Join 10,000+ EV drivers
-							</p>
-						</div>
-					</div>
+            <Input
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              value={form.password}
+              error={fieldErrors.password}
+              leftIcon={<Lock size={16} />}
+              rightIcon={
+                <button
+                  type="button"
+                  className="focus-ring"
+                  onClick={() => setShowPassword((current) => !current)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--text-secondary)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    padding: 0,
+                  }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              }
+              placeholder="Your password"
+              onChange={(event) => handleChange('password', event.target.value)}
+              autoComplete="current-password"
+            />
 
-					<div
-						className="glass-card"
-						style={{
-							padding: '1.3rem',
-							borderRadius: 'var(--radius-lg)',
-							minHeight: 520,
-							display: 'grid',
-							alignContent: 'center',
-						}}
-					>
-						<h2 style={{ fontSize: '1.7rem', marginBottom: '0.25rem' }}>Login</h2>
-						<p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-							Access your saved stations, reviews, and profile.
-						</p>
+            <div className="auth-row">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={form.remember}
+                  onChange={(event) => handleChange('remember', event.target.checked)}
+                />
+                Remember me
+              </label>
+              <button type="button" className="focus-ring" onClick={() => toast('Coming soon')}>
+                Forgot password?
+              </button>
+            </div>
 
-						{(fieldErrors.form || error) ? (
-							<div
-								style={{
-									border: '1px solid rgba(255, 61, 90, 0.4)',
-									background: 'rgba(255, 61, 90, 0.1)',
-									borderRadius: '10px',
-									padding: '0.55rem 0.65rem',
-									color: 'var(--accent-red)',
-									marginBottom: '0.8rem',
-									fontSize: '0.86rem',
-								}}
-							>
-								{fieldErrors.form || error}
-							</div>
-						) : null}
+            <Button type="submit" isLoading={isLoading}>
+              Login
+            </Button>
+          </form>
 
-						<form onSubmit={handleSubmit} style={{ display: 'grid', gap: '0.8rem' }}>
-							<Input
-								label="Email"
-								type="email"
-								value={form.email}
-								error={fieldErrors.email}
-								leftIcon={<Mail size={16} />}
-								placeholder="you@example.com"
-								onChange={(event) => handleChange('email', event.target.value)}
-								autoComplete="email"
-							/>
+          <div className="auth-divider">
+            <span />
+            <small>or continue with</small>
+            <span />
+          </div>
 
-							<Input
-								label="Password"
-								type={showPassword ? 'text' : 'password'}
-								value={form.password}
-								error={fieldErrors.password}
-								leftIcon={<Lock size={16} />}
-								rightIcon={
-									<button
-										type="button"
-										className="focus-ring"
-										onClick={() => setShowPassword((current) => !current)}
-										aria-label={showPassword ? 'Hide password' : 'Show password'}
-										style={{
-											border: 'none',
-											background: 'transparent',
-											color: 'var(--text-secondary)',
-											display: 'grid',
-											placeItems: 'center',
-											padding: 0,
-										}}
-									>
-										{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-									</button>
-								}
-								placeholder="Your password"
-								onChange={(event) => handleChange('password', event.target.value)}
-								autoComplete="current-password"
-							/>
+          <p className="auth-switch">
+            Don&apos;t have an account?{' '}
+            <Link to={registerPath} className="focus-ring">
+              Sign up
+            </Link>
+          </p>
 
-							<div
-								style={{
-									display: 'flex',
-									justifyContent: 'space-between',
-									alignItems: 'center',
-									gap: '0.5rem',
-									flexWrap: 'wrap',
-								}}
-							>
-								<label
-									style={{
-										display: 'inline-flex',
-										alignItems: 'center',
-										gap: '0.45rem',
-										color: 'var(--text-secondary)',
-										fontSize: '0.88rem',
-									}}
-								>
-									<input
-										type="checkbox"
-										checked={form.remember}
-										onChange={(event) => handleChange('remember', event.target.checked)}
-									/>
-									Remember me
-								</label>
+          <LandscapeScene compact className="auth-landscape" />
+        </div>
 
-								<button
-									type="button"
-									className="focus-ring"
-									onClick={() => toast('Coming soon')}
-									style={{
-										border: 'none',
-										background: 'transparent',
-										color: 'var(--accent-primary)',
-										fontSize: '0.88rem',
-										padding: 0,
-									}}
-								>
-									Forgot password?
-								</button>
-							</div>
+        <style>
+          {`
+            .auth-page {
+              position: relative;
+              min-height: 100svh;
+              display: grid;
+              place-items: center;
+              padding: 2rem 1rem;
+              overflow: hidden;
+              background-color: var(--bg-deep);
+            }
 
-							<Button type="submit" isLoading={isLoading}>
-								Login
-							</Button>
-						</form>
+            .auth-card {
+              position: relative;
+              width: min(440px, 100%);
+              min-height: 620px;
+              overflow: hidden;
+              padding: 1.35rem;
+              display: grid;
+              align-content: start;
+              gap: 1rem;
+              z-index: 2;
+            }
 
-						<div
-							style={{
-								display: 'grid',
-								gridTemplateColumns: '1fr auto 1fr',
-								alignItems: 'center',
-								gap: '0.7rem',
-								margin: '1rem 0',
-								color: 'var(--text-secondary)',
-								fontSize: '0.85rem',
-							}}
-						>
-							<span style={{ height: 1, background: 'rgba(122, 157, 181, 0.26)' }} />
-							<span>or</span>
-							<span style={{ height: 1, background: 'rgba(122, 157, 181, 0.26)' }} />
-						</div>
+            .auth-logo {
+              justify-self: center;
+              color: var(--text-primary);
+              text-decoration: none;
+              font-family: 'Syne', sans-serif;
+              font-weight: 800;
+              letter-spacing: 0;
+            }
 
-						<p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-							New to ElectroMap?{' '}
-							<Link to={registerPath} className="focus-ring" style={{ color: 'var(--accent-primary)' }}>
-								Create account
-							</Link>
-						</p>
-					</div>
-				</div>
+            .auth-logo span {
+              color: var(--cyan);
+            }
 
-				<style>
-					{`
-						@media (max-width: 920px) {
-							.container-shell {
-								width: min(100%, calc(100% - 1.4rem));
-							}
-						}
+            .auth-card h1 {
+              text-align: center;
+              font-size: 2rem;
+            }
 
-						@media (max-width: 900px) {
-							.container-shell {
-								display: grid;
-								grid-template-columns: minmax(0, 1fr) !important;
-							}
-						}
-					`}
-				</style>
-			</section>
-		</PageWrapper>
-	)
+            .auth-card p {
+              margin-top: 0.3rem;
+              text-align: center;
+              color: var(--text-muted);
+            }
+
+            .auth-form {
+              display: grid;
+              gap: 0.82rem;
+            }
+
+            .auth-row {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 0.7rem;
+              flex-wrap: wrap;
+              color: var(--text-muted);
+              font-size: 0.88rem;
+            }
+
+            .auth-row label {
+              display: inline-flex;
+              align-items: center;
+              gap: 0.45rem;
+            }
+
+            .auth-row input {
+              accent-color: var(--cyan);
+            }
+
+            .auth-row button {
+              border: none;
+              background: transparent;
+              color: var(--cyan);
+              padding: 0;
+            }
+
+            .auth-alert {
+              border: 1px solid rgba(255, 77, 109, 0.4);
+              background: rgba(255, 77, 109, 0.1);
+              border-radius: 12px;
+              padding: 0.6rem 0.7rem;
+              color: var(--red-alert);
+              font-size: 0.88rem;
+            }
+
+            .auth-divider {
+              display: grid;
+              grid-template-columns: 1fr auto 1fr;
+              align-items: center;
+              gap: 0.7rem;
+              color: var(--text-muted);
+              font-size: 0.84rem;
+            }
+
+            .auth-divider span {
+              height: 1px;
+              background: var(--border-subtle);
+            }
+
+            .auth-switch {
+              position: relative;
+              z-index: 3;
+              padding-bottom: 9rem;
+            }
+
+            .auth-switch a {
+              color: var(--cyan);
+            }
+
+            .auth-landscape {
+              opacity: 0.9;
+              z-index: 1;
+            }
+          `}
+        </style>
+      </section>
+    </PageWrapper>
+  )
 }
 
 export default Login

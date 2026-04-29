@@ -6,7 +6,7 @@ const createDefaultFilters = () => ({
   chargerType: [],
   minRating: 0,
   openNow: false,
-  maxDistance: 10,
+  maxDistance: 20,
   sortBy: 'nearest',
 })
 

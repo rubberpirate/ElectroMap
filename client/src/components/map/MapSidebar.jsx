@@ -18,6 +18,13 @@ const sortOptions = [
   { label: 'Most Available', value: 'most_available' },
 ]
 
+const chargerTypeOptions = [
+  { label: 'Level 1', value: 'Level1' },
+  { label: 'Level 2', value: 'Level2' },
+  { label: 'DC Fast', value: 'DC_Fast' },
+  { label: 'Tesla', value: 'Tesla_Supercharger' },
+]
+
 const toStationCode = (station, index) => {
   const raw = String(station?.stationCode || station?._id || '').replace(/[^a-zA-Z0-9]/g, '')
   if (!raw) {
@@ -55,20 +62,20 @@ const getStatusTone = (station) => {
 
   if (total <= 0 || String(station?.status || '').toLowerCase() === 'offline') {
     return {
-      color: '#7e7e7e',
+      color: '#588197',
       label: 'Offline',
     }
   }
 
   if (available > 0) {
     return {
-      color: '#f0f0f0',
+      color: '#00c48c',
       label: 'Open',
     }
   }
 
   return {
-    color: '#ff3333',
+    color: '#fd7a01',
     label: 'Busy',
   }
 }
@@ -130,9 +137,12 @@ function MapSidebar({
     if ((filters?.sortBy || 'nearest') !== 'nearest') {
       count += 1
     }
+    if (Array.isArray(filters?.chargerType) && filters.chargerType.length) {
+      count += filters.chargerType.length
+    }
 
     return count
-  }, [filters?.maxDistance, filters?.openNow, filters?.sortBy])
+  }, [filters?.chargerType, filters?.maxDistance, filters?.openNow, filters?.sortBy])
 
   useEffect(() => {
     const trimmedQuery = searchQuery.trim()
@@ -365,7 +375,7 @@ function MapSidebar({
         >
           <span>
             <SlidersHorizontal size={13} />
-            Core Filters
+            Charger filters
             {activeFilterCount > 0 ? <small>{activeFilterCount}</small> : null}
           </span>
           <span>{filtersOpen ? 'Hide' : 'Show'}</span>
@@ -388,6 +398,37 @@ function MapSidebar({
                 />
                 Open now
               </label>
+
+              <div className="nothing-filter-row">
+                <label>Charger type</label>
+                <div className="nothing-chip-grid">
+                  {chargerTypeOptions.map((option) => {
+                    const active = Array.isArray(filters?.chargerType)
+                      ? filters.chargerType.includes(option.value)
+                      : false
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`focus-ring nothing-chip ${active ? 'is-active' : ''}`}
+                        onClick={() => {
+                          const current = Array.isArray(filters?.chargerType)
+                            ? filters.chargerType
+                            : []
+                          onFiltersChange({
+                            chargerType: active
+                              ? current.filter((item) => item !== option.value)
+                              : [...current, option.value],
+                          })
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
               <div className="nothing-filter-row">
                 <label htmlFor="distance-range">

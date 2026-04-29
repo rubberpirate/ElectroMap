@@ -29,7 +29,6 @@ import StationCard from '../components/station/StationCard'
 import { Avatar, Badge, Button, Spinner } from '../components/ui'
 import { getMockNearbyStations, getMockStationById } from '../data/mockStations'
 import useAuth from '../hooks/useAuth'
-import useSocket from '../hooks/useSocket'
 import api from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import { useStationStore } from '../store/stationStore'
@@ -218,7 +217,8 @@ const formatChargerType = (value) => {
 function StationDetail() {
   const { id: stationId } = useParams()
   const navigate = useNavigate()
-  const { socket, isConnected } = useSocket()
+  const socket = null
+  const isConnected = false
   const { isAuthenticated } = useAuth()
   const authUser = useAuthStore((state) => state.user)
   const saveStation = useStationStore((state) => state.saveStation)
@@ -948,6 +948,7 @@ function StationDetail() {
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0.2 }}
                           transition={{ duration: 0.24 }}
+                          loading="lazy"
                           style={{
                             position: 'absolute',
                             inset: 0,
@@ -966,7 +967,7 @@ function StationDetail() {
                             position: 'absolute',
                             inset: 0,
                             background:
-                              'linear-gradient(145deg, rgba(255, 255, 255, 0.22), rgba(255, 51, 51, 0.25))',
+                              'linear-gradient(145deg, rgba(0, 232, 204, 0.16), rgba(253, 122, 1, 0.18))',
                             display: 'grid',
                             placeItems: 'center',
                             fontFamily: 'Syne, sans-serif',
