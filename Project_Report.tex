@@ -1,0 +1,459 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{titlesec}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue
+}
+
+\setlist[itemize]{leftmargin=1.2cm}
+\setlist[enumerate]{leftmargin=1.2cm}
+\titleformat{\section}{\large\bfseries}{\thesection}{0.75em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.75em}{}
+
+\title{\textbf{ElectroMap: EV Charging Station Finder}\\Project Report}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+ElectroMap is a full-stack web application designed to help electric vehicle users find reliable charging stations, check live charger availability, view station details, save preferred stations, and plan charging stops with better confidence. The application combines a React-based frontend, an Express.js backend, MongoDB data storage, JWT authentication, and real-time charger updates through Socket.IO.
+
+The platform focuses on reducing range anxiety for EV drivers by giving them practical information before they reach a charging location. Users can browse stations on a map, compare charger types, check pricing, view amenities, read reviews, and open detailed pages for individual stations. Admin users can manage station records, charger data, users, reviews, and analytics from a protected dashboard.
+
+\section{Scenario Based Case Study}
+
+Consider a driver named Alex who uses an electric vehicle for daily travel and occasional long-distance trips. Before starting a trip, Alex needs to know where nearby chargers are available, whether those chargers are currently usable, and which locations are reliable based on reviews.
+
+\subsection{User Registration and Authentication}
+
+Alex creates an account in ElectroMap using a username, email address, and password. The backend stores the account securely, hashes the password, and issues a JWT token after login. The frontend stores the token and uses it when Alex accesses protected features such as the dashboard, saved stations, profile settings, and reviews.
+
+\subsection{Finding Nearby Charging Stations}
+
+After logging in, Alex opens the map page. The application requests location access and uses the current latitude and longitude to find nearby charging stations. Alex can also search or filter stations manually. The map interface helps Alex compare stations by distance, availability, charger type, rating, and location.
+
+\subsection{Station Details and Decision Making}
+
+Alex opens a station detail page to check the full address, charger types, number of available chargers, pricing, operating hours, amenities, images, and user reviews. This helps Alex decide whether the station is suitable for the trip.
+
+\subsection{Saving Stations and Reviewing Experiences}
+
+Alex saves reliable charging stations to the dashboard for quick access later. After using a station, Alex can submit a rating, comment, and tags such as Fast, Clean, Safe, or Reliable. These reviews improve the quality of information available to other EV users.
+
+\subsection{Admin Management}
+
+An admin manages the platform by adding and updating station records, checking charger status, monitoring users, and reviewing analytics. This keeps the charging network data useful and current.
+
+\section{System Requirements}
+
+\subsection{Software Requirements}
+
+\begin{itemize}
+  \item Operating System: Windows 10/11, macOS, or Linux.
+  \item Node.js: Version 16 or above is required for the backend and frontend tooling.
+  \item npm: Required for installing dependencies and running scripts.
+  \item React.js: Used for building the frontend user interface.
+  \item Vite: Used as the frontend development server and build tool.
+  \item Express.js: Used for building the REST API.
+  \item MongoDB: Used as the NoSQL database.
+  \item Mongoose: Used for schema design and MongoDB interaction.
+  \item Browser: Latest version of Chrome, Firefox, Edge, or another modern browser.
+  \item Postman: Useful for API testing during development.
+  \item Visual Studio Code: Recommended editor for development.
+  \item MapTiler API Key: Required for live map rendering and location search features.
+\end{itemize}
+
+\subsection{Hardware Requirements}
+
+\begin{itemize}
+  \item Processor: Intel Core i5 or AMD Ryzen 5 or better.
+  \item RAM: Minimum 8 GB, with 16 GB recommended for smooth development.
+  \item Storage: At least 1 GB free space for dependencies and project files.
+  \item Display: 1366x768 or higher resolution.
+  \item Internet: Required for package installation, map services, and external API access.
+\end{itemize}
+
+\section{Project Architecture}
+
+ElectroMap follows a client-server architecture. The frontend is located in the \texttt{client} folder and the backend is located in the \texttt{server} folder.
+
+\subsection{High Level Flow}
+
+\begin{enumerate}
+  \item The user interacts with the React frontend.
+  \item The frontend sends HTTP requests to the Express API.
+  \item The backend validates requests, applies authentication or authorization where required, and calls controller logic.
+  \item Controllers communicate with MongoDB through Mongoose models.
+  \item The backend returns structured JSON responses to the frontend.
+  \item Socket.IO sends real-time charger status updates to subscribed clients.
+\end{enumerate}
+
+\subsection{Technical Architecture}
+
+\begin{longtable}{p{4cm}p{10cm}}
+\toprule
+\textbf{Layer} & \textbf{Description} \\
+\midrule
+Frontend & React application built with Vite. It provides pages for home, map, station details, login, registration, user dashboard, and admin dashboard. \\
+State Management & Zustand stores authentication, station, and map state on the client side. \\
+Map Layer & MapLibre and MapTiler are used for map rendering, search, route display, and location-based features. \\
+Backend API & Express.js application that exposes REST endpoints under \texttt{/api}. \\
+Database & MongoDB stores users, stations, chargers, and reviews. \\
+Authentication & JWT tokens protect private user and admin routes. \\
+Real-Time Layer & Socket.IO supports live charger status updates. \\
+Media Storage & Cloudinary configuration is available for uploaded station images and user avatars. \\
+\bottomrule
+\end{longtable}
+
+\section{ER Diagram Description}
+
+The database design contains four main entities: User, Station, Charger, and Review.
+
+\subsection{Entities}
+
+\begin{itemize}
+  \item User: Stores account information such as username, email, password, avatar, role, saved stations, and account creation date.
+  \item Station: Stores station name, address, city, state, country, coordinates, charger types, charger counts, pricing, operating hours, amenities, images, rating, verification status, and creator reference.
+  \item Charger: Stores station reference, charger type, power output, connector type, status, and last updated timestamp.
+  \item Review: Stores station reference, user reference, rating, comment, tags, and creation date.
+\end{itemize}
+
+\subsection{Relationships}
+
+\begin{itemize}
+  \item One user can save many stations.
+  \item One station can have many chargers.
+  \item One station can have many reviews.
+  \item One user can write many reviews.
+  \item A review belongs to one user and one station.
+  \item A station is added by one admin user.
+\end{itemize}
+
+\subsection{Primary and Foreign Keys}
+
+MongoDB ObjectIds are used as primary identifiers. References between collections are represented using ObjectId fields such as \texttt{stationId}, \texttt{userId}, and \texttt{addedBy}.
+
+\section{Key Features}
+
+\begin{itemize}
+  \item User registration, login, logout, and profile update.
+  \item JWT-protected user dashboard.
+  \item Admin-only dashboard and management routes.
+  \item EV station listing, search, filtering, and nearby station discovery.
+  \item Interactive map page with station markers and route planning support.
+  \item Station detail page with pricing, amenities, operating hours, images, chargers, and reviews.
+  \item Save and unsave station functionality.
+  \item Review creation, editing, and deletion.
+  \item Charger status management with real-time update events.
+  \item Admin analytics for stations, chargers, users, and reviews.
+  \item Optional mock data mode for frontend demonstration.
+\end{itemize}
+
+\section{Roles and Responsibilities}
+
+\subsection{User}
+
+\begin{itemize}
+  \item Create and manage an account.
+  \item Search for stations and view nearby charging locations.
+  \item Check charger availability, station details, pricing, and amenities.
+  \item Save favourite stations.
+  \item Submit, edit, and delete personal reviews.
+  \item Update profile information and avatar.
+\end{itemize}
+
+\subsection{Admin}
+
+\begin{itemize}
+  \item Add, update, and delete charging stations.
+  \item Manage station images and station metadata.
+  \item View and manage users.
+  \item View charger information and update charger status.
+  \item View review data.
+  \item Monitor platform analytics.
+\end{itemize}
+
+\section{User Flow}
+
+\subsection{Customer Flow}
+
+\begin{enumerate}
+  \item Register or log in.
+  \item Open the home page or map page.
+  \item Allow location access or search manually.
+  \item Browse charging stations.
+  \item Open a station detail page.
+  \item Save the station or navigate to it.
+  \item Submit a review after using the station.
+  \item Manage saved stations and reviews from the dashboard.
+\end{enumerate}
+
+\subsection{Admin Flow}
+
+\begin{enumerate}
+  \item Log in with an admin account.
+  \item Open the admin dashboard.
+  \item View analytics and system statistics.
+  \item Add or update stations.
+  \item Monitor chargers, users, and reviews.
+  \item Update user roles or station data when required.
+\end{enumerate}
+
+\section{MVC Pattern}
+
+The backend follows the Model-View-Controller pattern. In this REST API project, the routing layer acts as the view layer because it receives HTTP requests and maps them to controller functions.
+
+\subsection{Model Layer}
+
+The model layer is implemented with Mongoose schemas in the \texttt{server/models} folder. The main models are:
+
+\begin{itemize}
+  \item \texttt{User.js}
+  \item \texttt{Station.js}
+  \item \texttt{Charger.js}
+  \item \texttt{Review.js}
+\end{itemize}
+
+\subsection{Controller Layer}
+
+Controllers are stored in \texttt{server/controllers}. They contain business logic for authentication, users, stations, chargers, reviews, and admin operations.
+
+\subsection{Routing Layer}
+
+Routes are stored in \texttt{server/routes}. They define API endpoints and connect each endpoint to the correct controller. Middleware is used for validation, authentication, authorization, rate limiting, and error handling.
+
+\subsection{Advantages of MVC}
+
+\begin{itemize}
+  \item Clear separation of concerns.
+  \item Easier maintenance and debugging.
+  \item Controllers and models can be tested independently.
+  \item New features can be added by creating new routes, controllers, and models.
+  \item Multiple developers can work on different layers with fewer conflicts.
+\end{itemize}
+
+\section{Project Setup and Configuration}
+
+\subsection{Folder Structure}
+
+\begin{verbatim}
+full-stack/
+  client/
+    src/
+    public/
+    package.json
+  server/
+    config/
+    controllers/
+    middleware/
+    models/
+    routes/
+    services/
+    utils/
+    package.json
+    server.js
+\end{verbatim}
+
+\subsection{Backend Setup}
+
+\begin{enumerate}
+  \item Open the server folder.
+  \item Install dependencies using \texttt{npm install}.
+  \item Create \texttt{server/.env}.
+  \item Add MongoDB and JWT configuration.
+  \item Run the backend using \texttt{npm run dev}.
+\end{enumerate}
+
+\subsection{Backend Environment Variables}
+
+\begin{verbatim}
+PORT=5000
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRES_IN=7d
+CLIENT_URL=http://localhost:5173
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+IOT_SECRET_TOKEN=optional_iot_token
+\end{verbatim}
+
+\subsection{Frontend Setup}
+
+\begin{enumerate}
+  \item Open the client folder.
+  \item Install dependencies using \texttt{npm install}.
+  \item Create \texttt{client/.env} if custom environment values are required.
+  \item Run the frontend using \texttt{npm run dev}.
+\end{enumerate}
+
+\subsection{Frontend Environment Variables}
+
+\begin{verbatim}
+VITE_API_BASE_URL=http://localhost:5000/api
+VITE_SOCKET_URL=http://localhost:5000
+VITE_MAPTILER_KEY=your_maptiler_key
+VITE_USE_MOCK_DATA=false
+\end{verbatim}
+
+\section{Backend Development}
+
+\subsection{Backend Structure}
+
+\begin{longtable}{p{4cm}p{10cm}}
+\toprule
+\textbf{Path} & \textbf{Purpose} \\
+\midrule
+\texttt{server.js} & Starts the HTTP server, loads environment variables, connects to MongoDB, and initializes Socket.IO. \\
+\texttt{app.js} & Configures Express middleware, CORS, routes, health check, and error handling. \\
+\texttt{config/db.js} & Connects the backend to MongoDB. \\
+\texttt{config/cloudinary.js} & Configures Cloudinary for image uploads. \\
+\texttt{models/} & Contains Mongoose schemas. \\
+\texttt{controllers/} & Contains business logic. \\
+\texttt{routes/} & Contains API route definitions. \\
+\texttt{middleware/} & Contains authentication, validation, rate limiting, and error handling middleware. \\
+\texttt{services/socketService.js} & Handles Socket.IO subscriptions and update events. \\
+\texttt{utils/} & Contains reusable response, validation, and geolocation helpers. \\
+\bottomrule
+\end{longtable}
+
+\subsection{API Routes}
+
+\begin{longtable}{p{4cm}p{10cm}}
+\toprule
+\textbf{Route Group} & \textbf{Main Endpoints} \\
+\midrule
+\texttt{/api/health} & Checks backend health. \\
+\texttt{/api/auth} & Register, login, logout, current user, and profile update. \\
+\texttt{/api/stations} & List stations, nearby stations, search, station detail, create, update, delete, save, and unsave. \\
+\texttt{/api/chargers} & Get chargers by station and update charger status. \\
+\texttt{/api/reviews} & Get station reviews, create review, update review, and delete review. \\
+\texttt{/api/users} & Saved stations, user profile, and current user's reviews. \\
+\texttt{/api/admin} & Admin stats, users, user roles, reviews, and chargers. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Security and Middleware}
+
+\begin{itemize}
+  \item Helmet adds common security headers.
+  \item CORS allows configured frontend origins.
+  \item Express rate limiting protects general and authentication routes.
+  \item JWT middleware protects private routes.
+  \item Admin middleware restricts admin-only endpoints.
+  \item Zod validation utilities are available for request validation.
+  \item Centralized error handling returns consistent error responses.
+\end{itemize}
+
+\section{Database Development}
+
+\subsection{MongoDB Configuration}
+
+The backend uses Mongoose to connect to MongoDB. The connection string is provided through the \texttt{MONGO\_URI} environment variable. If the variable is missing, the database connection code reports an error.
+
+\subsection{Schemas}
+
+\subsubsection*{User Schema}
+
+The User schema stores username, email, hashed password, avatar URL, role, saved station references, and creation date. Passwords are hashed before saving, and a method is provided to compare login passwords.
+
+\subsubsection*{Station Schema}
+
+The Station schema stores station identity, address, geospatial coordinates, charger types, charger availability counts, pricing, operating hours, amenities, images, ratings, verification status, and admin creator reference. It also defines geospatial, city, rating, and text search indexes.
+
+\subsubsection*{Charger Schema}
+
+The Charger schema stores the station reference, charger type, power output, connector type, current status, and last updated timestamp. Supported statuses are available, occupied, offline, and maintenance.
+
+\subsubsection*{Review Schema}
+
+The Review schema stores the station reference, user reference, rating, comment, tags, and creation date. It recalculates station average rating and total review count when reviews are saved or deleted.
+
+\section{Frontend Development}
+
+\subsection{Frontend Structure}
+
+\begin{longtable}{p{4cm}p{10cm}}
+\toprule
+\textbf{Path} & \textbf{Purpose} \\
+\midrule
+\texttt{src/App.jsx} & Defines application routes. \\
+\texttt{src/pages/Home.jsx} & Landing page with station highlights and entry points. \\
+\texttt{src/pages/Map.jsx} & Main map interface for station discovery and route planning. \\
+\texttt{src/pages/StationDetail.jsx} & Detailed station information, chargers, reviews, and save actions. \\
+\texttt{src/pages/Dashboard.jsx} & User dashboard for saved stations, reviews, and profile settings. \\
+\texttt{src/pages/Admin.jsx} & Admin dashboard for platform management and analytics. \\
+\texttt{src/pages/Login.jsx} & User login page. \\
+\texttt{src/pages/Register.jsx} & User registration page. \\
+\texttt{src/components/map/} & Map sidebar, map view, station markers, route planner, and route layer. \\
+\texttt{src/components/station/} & Station cards and station drawer components. \\
+\texttt{src/components/admin/} & Station form modal used by admins. \\
+\texttt{src/components/ui/} & Reusable UI components. \\
+\texttt{src/store/} & Zustand state stores. \\
+\texttt{src/services/api.js} & Axios API client with auth token handling. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Frontend Pages}
+
+\begin{itemize}
+  \item Home Page: Presents the application purpose and featured charging stations.
+  \item Map Page: Shows EV stations on a map with filtering, search, route planning, and station selection.
+  \item Station Detail Page: Displays full station data, charger information, pricing, amenities, and reviews.
+  \item Dashboard Page: Lets users manage saved stations, reviews, and profile settings.
+  \item Admin Page: Lets admins manage stations, users, chargers, reviews, and analytics.
+  \item Login and Register Pages: Handle user authentication flows.
+  \item Not Found Page: Handles invalid routes.
+\end{itemize}
+
+\section{Output Screens}
+
+The current application contains the following main screens:
+
+\begin{itemize}
+  \item Home page
+  \item Registration page
+  \item Login page
+  \item EV station map page
+  \item Station detail page
+  \item User dashboard
+  \item Admin dashboard
+  \item Admin station form modal
+  \item Not found page
+\end{itemize}
+
+\section{Testing and Validation}
+
+The frontend includes a lint script through ESLint. The backend currently has a placeholder test script. During development, APIs can be tested manually with Postman or another API client. Important test areas include:
+
+\begin{itemize}
+  \item User registration and login.
+  \item Protected user and admin routes.
+  \item Station search and nearby station queries.
+  \item Charger status updates.
+  \item Review creation, update, deletion, and rating recalculation.
+  \item Map rendering with a valid MapTiler key.
+  \item Frontend behavior in mock data mode and live API mode.
+\end{itemize}
+
+\section{Conclusion}
+
+ElectroMap provides a complete full-stack solution for EV charging station discovery and management. It supports user authentication, station browsing, interactive maps, saved stations, reviews, admin controls, MongoDB persistence, and real-time charger status updates. The project is structured in a scalable way, with separate frontend and backend folders, clear MVC-style backend organization, reusable frontend components, and environment-based configuration.
+
+\end{document}
